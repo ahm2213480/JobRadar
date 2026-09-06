@@ -1,0 +1,422 @@
+// JobRadar - Prisma schema (Phase 0)
+// Provider: PostgreSQL (Neon in development).
+// Every user-owned table is scoped by userId so ownership checks can be
+// enforced at query level in every endpoint (never trust client input).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------- Enums ----------------------------
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum WorkMode {
+  REMOTE
+  HYBRID
+  ONSITE
+  UNKNOWN
+}
+
+enum ExperienceLevel {
+  INTERNSHIP
+  ENTRY
+  JUNIOR
+  MID_LEVEL
+  SENIOR
+  LEAD
+  UNKNOWN
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  TEMPORARY
+  OTHER
+  UNKNOWN
+}
+
+enum SalaryPeriod {
+  HOURLY
+  MONTHLY
+  YEARLY
+}
+
+enum SkillCategory {
+  PROGRAMMING_LANGUAGE
+  FRAMEWORK
+  TOOL
+  SOFT_SKILL
+  OTHER
+}
+
+enum UserSkillSource {
+  CV
+  MANUAL
+  AI
+}
+
+enum MatchRecommendation {
+  HIGHLY_RECOMMENDED
+  RECOMMENDED
+  CONSIDER
+  NOT_RECOMMENDED
+}
+
+enum SavedJobStatus {
+  SAVED
+  IGNORED
+}
+
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  HR_SCREENING
+  TECHNICAL_INTERVIEW
+  FINAL_INTERVIEW
+  OFFER
+  REJECTED
+}
+
+enum InterviewType {
+  PHONE_SCREENING
+  TECHNICAL
+  HR
+  FINAL
+  ONSITE
+  OTHER
+}
+
+enum InterviewOutcome {
+  PENDING
+  PASSED
+  FAILED
+}
+
+enum NotificationType {
+  NEW_MATCHES
+  HIGH_MATCH
+  DEADLINE_REMINDER
+  INTERVIEW_REMINDER
+  SYSTEM
+}
+
+enum LearningGoalStatus {
+  ACTIVE
+  COMPLETED
+}
+
+// ------------------------ User & profile ------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profile       UserProfile?
+  preferences   Preference?
+  cvs           CV[]
+  userSkills    UserSkill[]
+  jobMatches    JobMatch[]
+  savedJobs     SavedJob[]
+  applications  Application[]
+  notifications Notification[]
+  learningGoals LearningGoal[]
+}
+
+model UserProfile {
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  headline          String?
+  summary           String? @db.Text
+  location          String?
+  phone             String?
+  linkedinUrl       String?
+  githubUrl         String?
+  portfolioUrl      String?
+  yearsOfExperience Int?
+  currentTitle      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Preference {
+  id                    String          @id @default(cuid())
+  userId                String          @unique
+  desiredTitles         String[]
+  preferredLocations    String[]
+  preferredTechnologies String[]
+  workMode              WorkMode        @default(UNKNOWN)
+  experienceLevel       ExperienceLevel @default(UNKNOWN)
+  salaryMin             Int?
+  salaryMax             Int?
+  salaryCurrency        String?
+  remoteOnly            Boolean         @default(false)
+  emailNotifications    Boolean         @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------- Skills ----------------------------
+
+model Skill {
+  id       String        @id @default(cuid())
+  name     String        @unique
+  category SkillCategory @default(OTHER)
+  // Canonical aliases used by the matching engine, e.g. "js" -> "JavaScript".
+  aliases  String[]
+
+  userSkills    UserSkill[]
+  jobSkills     JobSkill[]
+  learningGoals LearningGoal[]
+}
+
+model UserSkill {
+  id          String          @id @default(cuid())
+  userId      String
+  skillId     String
+  proficiency Int? // optional self-assessment, 1-5
+  years       Decimal?        @db.Decimal(3, 1)
+  source      UserSkillSource @default(MANUAL)
+  createdAt   DateTime        @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+}
+
+// ----------------------------- CVs -----------------------------
+
+model CV {
+  id         String   @id @default(cuid())
+  userId     String
+  fileName   String
+  filePath   String
+  mimeType   String
+  sizeBytes  Int
+  rawText    String?  @db.Text
+  parsed     Json?
+  isPrimary  Boolean  @default(false)
+  uploadedAt DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@index([userId])
+}
+
+// ----------------------------- Jobs -----------------------------
+
+model Company {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  normalizedName String   @unique
+  website        String?
+  industry       String?
+  createdAt      DateTime @default(now())
+
+  jobs         Job[]
+  applications Application[]
+}
+
+model JobSource {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  baseUrl      String?
+  isActive     Boolean   @default(true)
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  jobs Job[]
+}
+
+model Job {
+  id              String          @id @default(cuid())
+  sourceId        String
+  externalId      String?
+  companyId       String?
+  title           String
+  description     String          @db.Text
+  location        String?
+  workMode        WorkMode        @default(UNKNOWN)
+  experienceLevel ExperienceLevel @default(UNKNOWN)
+  employmentType  EmploymentType  @default(UNKNOWN)
+  salaryMin       Int?
+  salaryMax       Int?
+  salaryCurrency  String?
+  salaryPeriod    SalaryPeriod?
+  url             String
+  postedAt        DateTime?
+  // Content hash used to de-duplicate jobs within the same source.
+  fingerprint     String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  source  JobSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  company Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  jobSkills    JobSkill[]
+  matches      JobMatch[]
+  savedBy      SavedJob[]
+  applications Application[]
+
+  @@unique([sourceId, externalId])
+  @@unique([sourceId, fingerprint])
+  @@index([postedAt])
+  @@index([title])
+}
+
+model JobSkill {
+  id         String  @id @default(cuid())
+  jobId      String
+  skillId    String
+  isRequired Boolean @default(true)
+
+  job   Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, skillId])
+}
+
+// --------------------------- Matching ---------------------------
+
+model JobMatch {
+  id             String              @id @default(cuid())
+  userId         String
+  jobId          String
+  matchScore     Int
+  // Transparent per-factor breakdown of the weighted matching algorithm
+  // (requiredSkills, preferredSkills, experience, education, title,
+  // location/workMode, salary) so every score can be explained.
+  breakdown      Json
+  aiExplanation  String?             @db.Text
+  recommendation MatchRecommendation
+  aiModel        String?
+  computedAt     DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+  @@index([userId, matchScore])
+}
+
+model SavedJob {
+  id        String         @id @default(cuid())
+  userId    String
+  jobId     String
+  status    SavedJobStatus @default(SAVED)
+  createdAt DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+}
+
+// ------------------------- Applications -------------------------
+
+model Application {
+  id                 String            @id @default(cuid())
+  userId             String
+  // Nullable: applications can also be tracked manually without a Job record
+  // (e.g. pasted from LinkedIn). When the job is deleted the application
+  // survives as a manual record.
+  jobId              String?
+  companyId          String?
+  title              String
+  url                String?
+  status             ApplicationStatus @default(SAVED)
+  appliedAt          DateTime?
+  interviewDate      DateTime?
+  salaryText         String?
+  contactName        String?
+  contactEmail       String?
+  cvId               String?
+  matchScoreSnapshot Int?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job     Job?     @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  cv      CV?      @relation(fields: [cvId], references: [id], onDelete: SetNull)
+
+  notes      ApplicationNote[]
+  interviews Interview[]
+
+  @@index([userId, status])
+}
+
+model ApplicationNote {
+  id            String   @id @default(cuid())
+  applicationId String
+  body          String   @db.Text
+  createdAt     DateTime @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model Interview {
+  id             String           @id @default(cuid())
+  applicationId  String
+  scheduledAt    DateTime
+  type           InterviewType    @default(TECHNICAL)
+  locationOrLink String?
+  notes          String?          @db.Text
+  outcome        InterviewOutcome @default(PENDING)
+  createdAt      DateTime         @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, scheduledAt])
+}
+
+// ------------------- Notifications & learning -------------------
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType @default(SYSTEM)
+  title     String
+  body      String?          @db.Text
+  data      Json?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+model LearningGoal {
+  id        String             @id @default(cuid())
+  userId    String
+  skillId   String
+  status    LearningGoalStatus @default(ACTIVE)
+  dueDate   DateTime?
+  createdAt DateTime           @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
