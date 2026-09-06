@@ -1,3 +1,4 @@
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import type { Express } from 'express';
 import express from 'express';
@@ -22,14 +23,18 @@ export function createApp(): Express {
     }),
   );
 
+  // Parses cookies so the auth refresh token (httpOnly) is reachable at
+  // req.cookies.
+  app.use(cookieParser());
+
   app.use(express.json({ limit: '1mb' }));
 
   if (env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
   }
 
-  // Generic safety net for the whole API. Tighter, per-endpoint limits will be
-  // applied on auth endpoints in Phase 1.
+  // Generic safety net for the whole API. Tighter, per-endpoint limits are
+  // applied on the credential endpoints in the auth router.
   app.use(
     '/api',
     rateLimit({

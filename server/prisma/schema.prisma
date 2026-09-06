@@ -124,6 +124,8 @@ model User {
   passwordHash String
   fullName     String
   role         Role     @default(USER)
+  // Incremented to invalidate all outstanding refresh tokens (e.g. on logout).
+  tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

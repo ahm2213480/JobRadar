@@ -13,6 +13,18 @@ const envSchema = z.object({
   // Optional until the developer configures Neon — /api/health reports the
   // real database status instead of the app silently pretending to work.
   DATABASE_URL: z.string().trim().min(1).optional(),
+  // Required from Phase 1 (authentication). Generate with:
+  //   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+  JWT_ACCESS_SECRET: z
+    .string()
+    .trim()
+    .min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
+  JWT_REFRESH_SECRET: z
+    .string()
+    .trim()
+    .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  JWT_ACCESS_EXPIRES_IN: z.string().trim().default('15m'),
+  JWT_REFRESH_EXPIRES_IN: z.string().trim().default('7d'),
 });
 
 const parsed = envSchema.safeParse(process.env);

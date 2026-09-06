@@ -5,9 +5,10 @@ and professional profile, compares it against job descriptions, and produces a
 **transparent Match Score (0–100)** with a per-factor breakdown, an AI-written
 explanation, CV optimization suggestions, and skills-gap analysis.
 
-> **Status: Phase 0 — Foundation** (monorepo, API server, web client, database
-> schema and initial migration). Authentication, CV analysis, job matching and
-> the dashboard arrive in the following phases — see [Roadmap](#roadmap).
+> **Status: Phase 1 — Authentication** (monorepo, API server, web client,
+> database schema + migrations, full JWT auth with refresh-token rotation and
+> session revocation). Profile, CV analysis, job matching and the dashboard
+> arrive in the following phases — see [Roadmap](#roadmap).
 
 ---
 
@@ -112,7 +113,7 @@ it live.
 | Phase | Scope                                                                 |
 | ----- | --------------------------------------------------------------------- |
 | 0 ✅  | Monorepo, API + client foundations, Prisma schema + initial migration |
-| 1     | Authentication (register/login/logout, JWT, protected routes)         |
+| 1 ✅  | Authentication (register/login/logout, JWT + refresh rotation, session revocation, protected routes) |
 | 2     | Profile + preferences                                                 |
 | 3     | CV upload, parsing (PDF/DOCX), AI CV analysis                         |
 | 4     | Job source adapters + ingestion + deduplication                       |
