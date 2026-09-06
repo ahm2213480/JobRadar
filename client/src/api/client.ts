@@ -1,4 +1,5 @@
 import type { AuthSuccessResponse, AuthUser, RefreshResponse } from '../types/auth';
+import type { PreferencesData, ProfileBundle, UserProfileData } from '../types/profile';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
@@ -131,4 +132,26 @@ export async function logout(): Promise<void> {
 export async function fetchCurrentUser(): Promise<AuthUser> {
   const data = await request<{ user: AuthUser }>('/auth/me');
   return data.user;
+}
+
+export async function fetchProfileBundle(): Promise<ProfileBundle> {
+  return request<ProfileBundle>('/profile');
+}
+
+export async function updateProfile(
+  input: Partial<UserProfileData>,
+): Promise<ProfileBundle> {
+  return request<ProfileBundle>('/profile', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updatePreferences(
+  input: Partial<PreferencesData>,
+): Promise<ProfileBundle> {
+  return request<ProfileBundle>('/profile/preferences', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
 }

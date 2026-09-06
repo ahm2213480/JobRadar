@@ -23,12 +23,26 @@ export function Header() {
         <div className="flex items-center gap-2">
           {initializing ? null : user ? (
             <>
-              <Link
-                to="/account"
-                className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
-              >
-                Hi, {user.fullName.split(' ')[0]}
-              </Link>
+              <nav className="flex items-center gap-4">
+                <Link
+                  to="/profile"
+                  className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+                >
+                  Profile
+                </Link>
+                <Link
+                  to="/settings"
+                  className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+                >
+                  Preferences
+                </Link>
+                <Link
+                  to="/account"
+                  className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+                >
+                  Hi, {user.fullName.split(' ')[0]}
+                </Link>
+              </nav>
               <Button variant="ghost" onClick={handleLogout}>
                 Log out
               </Button>
@@ -45,7 +59,7 @@ export function Header() {
             </>
           )}
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-            Phase 1 — Authentication
+            Phase 2 — Profile
           </span>
         </div>
       </div>
