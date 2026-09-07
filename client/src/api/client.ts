@@ -1,4 +1,5 @@
 import type { AuthSuccessResponse, AuthUser, RefreshResponse } from '../types/auth';
+import type { CvAnalysisResult, CvRecord } from '../types/cv';
 import type { PreferencesData, ProfileBundle, UserProfileData } from '../types/profile';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -54,9 +55,13 @@ async function request<T>(
   allowRefresh = true,
 ): Promise<T> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...options.headers,
   };
+  // The browser sets the multipart boundary itself — never force
+  // Content-Type when uploading a FormData body.
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -154,4 +159,28 @@ export async function updatePreferences(
     method: 'PUT',
     body: JSON.stringify(input),
   });
+}
+
+// ---------------------------- CV (Phase 3) ----------------------------
+
+export async function uploadCv(file: File): Promise<CvRecord> {
+  const body = new FormData();
+  body.append('file', file);
+  return request<CvRecord>('/cv', { method: 'POST', body });
+}
+
+export async function listCvs(): Promise<CvRecord[]> {
+  return request<CvRecord[]>('/cv');
+}
+
+export async function analyzeCv(cvId: string): Promise<CvAnalysisResult> {
+  return request<CvAnalysisResult>(`/cv/${cvId}/analyze`, { method: 'POST' });
+}
+
+export async function setPrimaryCv(cvId: string): Promise<CvRecord> {
+  return request<CvRecord>(`/cv/${cvId}/primary`, { method: 'PATCH' });
+}
+
+export async function deleteCv(cvId: string): Promise<void> {
+  return request<void>(`/cv/${cvId}`, { method: 'DELETE' });
 }

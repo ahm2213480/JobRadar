@@ -25,6 +25,12 @@ export function Header() {
             <>
               <nav className="flex items-center gap-4">
                 <Link
+                  to="/cv"
+                  className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+                >
+                  CV
+                </Link>
+                <Link
                   to="/profile"
                   className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
                 >

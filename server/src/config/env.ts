@@ -25,6 +25,12 @@ const envSchema = z.object({
     .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
   JWT_ACCESS_EXPIRES_IN: z.string().trim().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().trim().default('7d'),
+  // --- AI (Phase 3: CV analysis) ---
+  // Optional: without a key the built-in heuristic extractor is used so the
+  // flow is testable end-to-end; set AI_API_KEY to enable the real provider.
+  AI_PROVIDER: z.enum(['gemini', 'mock']).default('gemini'),
+  AI_API_KEY: z.string().trim().optional(),
+  AI_MODEL: z.string().trim().default('gemini-2.5-flash'),
 });
 
 const parsed = envSchema.safeParse(process.env);
