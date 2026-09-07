@@ -6,7 +6,7 @@ import type { CvAnalysis } from './cv-analysis.schema';
  * logic (profile, matching, CV) never knows which provider it talks to.
  */
 export interface IAIService {
-  /** Short human-readable provider label, e.g. "gemini:gemini-2.5-flash". */
+  /** Short human-readable provider label, e.g. "gemini:gemini-3.6-flash". */
   readonly name: string;
   /**
    * Analyzes the raw text of a CV/resume and returns structured profile +

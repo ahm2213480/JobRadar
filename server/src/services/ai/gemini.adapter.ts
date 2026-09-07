@@ -115,8 +115,11 @@ export class GeminiService implements IAIService {
     let parsedUnknown: unknown;
     try {
       parsedUnknown = JSON.parse(cleaned);
-    } catch {
-      logger.error('Gemini returned non-JSON output', { snippet: cleaned.slice(0, 500) });
+    } catch (parseErr) {
+      logger.error('Gemini returned non-JSON output', {
+        snippet: cleaned.slice(0, 500),
+        parseError: parseErr instanceof Error ? parseErr.message : 'unknown',
+      });
       throw new AppError(502, 'AI provider returned malformed JSON');
     }
 

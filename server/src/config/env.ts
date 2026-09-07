@@ -30,7 +30,7 @@ const envSchema = z.object({
   // flow is testable end-to-end; set AI_API_KEY to enable the real provider.
   AI_PROVIDER: z.enum(['gemini', 'mock']).default('gemini'),
   AI_API_KEY: z.string().trim().optional(),
-  AI_MODEL: z.string().trim().default('gemini-2.5-flash'),
+  AI_MODEL: z.string().trim().default('gemini-3.6-flash'),
 });
 
 const parsed = envSchema.safeParse(process.env);
