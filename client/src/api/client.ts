@@ -1,5 +1,13 @@
 import type { AuthSuccessResponse, AuthUser, RefreshResponse } from '../types/auth';
 import type { CvAnalysisResult, CvRecord } from '../types/cv';
+import type {
+  JobListItem,
+  JobsListResponse,
+  JobSourceInfo,
+  JobStats,
+  ManualJobInput,
+  SyncSummary,
+} from '../types/job';
 import type { PreferencesData, ProfileBundle, UserProfileData } from '../types/profile';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -183,4 +191,48 @@ export async function setPrimaryCv(cvId: string): Promise<CvRecord> {
 
 export async function deleteCv(cvId: string): Promise<void> {
   return request<void>(`/cv/${cvId}`, { method: 'DELETE' });
+}
+
+// ---------------------------- Jobs (Phase 4) ----------------------------
+
+export async function listJobs(params: {
+  q?: string;
+  workMode?: string;
+  location?: string;
+  source?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<JobsListResponse> {
+  const query = new URLSearchParams();
+  if (params.q) query.set('q', params.q);
+  if (params.workMode) query.set('workMode', params.workMode);
+  if (params.location) query.set('location', params.location);
+  if (params.source) query.set('source', params.source);
+  if (params.limit) query.set('limit', String(params.limit));
+  if (params.offset) query.set('offset', String(params.offset));
+  const qs = query.toString();
+  return request<JobsListResponse>(`/jobs${qs ? `?${qs}` : ''}`);
+}
+
+export async function getJob(jobId: string): Promise<JobListItem> {
+  return request<JobListItem>(`/jobs/${jobId}`);
+}
+
+export async function listJobSources(): Promise<JobSourceInfo[]> {
+  return request<JobSourceInfo[]>('/jobs/sources');
+}
+
+export async function getJobStats(): Promise<JobStats> {
+  return request<JobStats>('/jobs/stats');
+}
+
+export async function syncJobs(): Promise<SyncSummary> {
+  return request<SyncSummary>('/jobs/sync', { method: 'POST' });
+}
+
+export async function addManualJob(input: ManualJobInput): Promise<{ id: string }> {
+  return request<{ id: string }>('/jobs/manual', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }

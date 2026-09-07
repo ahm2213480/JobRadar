@@ -5,12 +5,13 @@ and professional profile, compares it against job descriptions, and produces a
 **transparent Match Score (0–100)** with a per-factor breakdown, an AI-written
 explanation, CV optimization suggestions, and skills-gap analysis.
 
-> **Status: Phase 3 — CV Intelligence** (monorepo, API server, web client,
-> database schema + migrations, full JWT auth, profile + preferences with a
-> transparent completion score, plus CV upload/parse for PDF & DOCX and AI
-> skill extraction — pluggable `IAIService` with a Gemini adapter and a
-> built-in heuristic fallback). Job ingestion and matching arrive in the
-> following phases — see [Roadmap](#roadmap).
+> **Status: Phase 4 — Job Feeds** (monorepo, API server, web client,
+> database schema + migrations, full JWT auth, profile + preferences, CV
+> intelligence with AI skill extraction, plus pluggable `IJobProvider` adapters
+> for Remotive / Arbeitnow / RemoteOK / manual-paste, content-based
+> deduplication, skill auto-extraction, and a node-cron scheduler that syncs
+> every 6 hours). The matching engine and dashboard arrive in the following
+> phases — see [Roadmap](#roadmap).
 
 ---
 
@@ -118,8 +119,7 @@ it live.
 | 1 ✅  | Authentication (register/login/logout, JWT + refresh rotation, session revocation, protected routes) |
 | 2 ✅  | Profile + preferences (user profile editor, job-preference editor, transparent completion score) |
 | 3 ✅  | CV upload + parsing (PDF/DOCX, magic-byte verified) + AI extraction → user skills & profile auto-fill |
-| 3     | CV upload, parsing (PDF/DOCX), AI CV analysis                         |
-| 4     | Job source adapters + ingestion + deduplication                       |
+| 4 ✅  | Job source adapters (Remotive, Arbeitnow, RemoteOK, manual/LinkedIn-paste) + ingestion + deduplication + skill auto-extraction + 6-hour scheduler |
 | 5     | Transparent weighted matching engine + AI explanations                |
 | 6–7   | Dashboard, jobs browsing/filters, job details ("Why you match")       |
 | 8     | Saved jobs + application tracking (Kanban, notes, interviews)         |

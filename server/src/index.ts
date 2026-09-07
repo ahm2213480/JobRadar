@@ -2,6 +2,7 @@ import { createApp } from './app';
 import { env } from './config/env';
 import { logger } from './config/logger';
 import { prisma } from './config/prisma';
+import { startJobScheduler } from './scheduler';
 
 const app = createApp();
 
@@ -9,6 +10,8 @@ const server = app.listen(env.PORT, () => {
   logger.info(`JobRadar API listening on http://localhost:${env.PORT} (${env.NODE_ENV})`);
   if (!env.DATABASE_URL) {
     logger.warn('DATABASE_URL is not configured — database-dependent features are disabled until it is set in server/.env');
+  } else {
+    startJobScheduler();
   }
 });
 

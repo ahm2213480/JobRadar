@@ -25,6 +25,12 @@ export function Header() {
             <>
               <nav className="flex items-center gap-4">
                 <Link
+                  to="/jobs"
+                  className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+                >
+                  Jobs
+                </Link>
+                <Link
                   to="/cv"
                   className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
                 >
@@ -65,7 +71,7 @@ export function Header() {
             </>
           )}
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-            Phase 2 — Profile
+            Phase 4 — Jobs
           </span>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import { AccountPage } from './pages/AccountPage';
 import { CVPage } from './pages/CVPage';
 import { HomePage } from './pages/HomePage';
+import { JobsPage } from './pages/JobsPage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -35,6 +36,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <CVPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/jobs"
+                element={
+                  <ProtectedRoute>
+                    <JobsPage />
                   </ProtectedRoute>
                 }
               />
