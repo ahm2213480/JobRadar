@@ -125,6 +125,22 @@ export class MockAIService implements IAIService {
     }
     return parsed.data;
   }
+  async explainMatch(prompt: string): Promise<string> {
+    // The mock service returns a deterministic, score-derived explanation so
+    // the UI can be tested without a real AI provider.
+    const scoreMatch = prompt.match(/Match score:\s*(\d+)/);
+    const score = scoreMatch ? Number(scoreMatch[1]) : 50;
+    if (score >= 80) {
+      return 'You are a strong match for this role — your skills and experience align well with what the employer is looking for.';
+    }
+    if (score >= 60) {
+      return 'You match several key requirements for this role. Highlighting your relevant experience could strengthen your application.';
+    }
+    if (score >= 40) {
+      return 'You have some matching skills, but there are gaps. Consider upskilling in the missing areas to improve your fit.';
+    }
+        return 'This role may not be the best fit right now, but it highlights skills you could develop for future opportunities.';
+  }
 }
 
 /** First line that reads like a professional title (up to ~90 chars). */

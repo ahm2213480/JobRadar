@@ -130,4 +130,51 @@ export class GeminiService implements IAIService {
     }
     return parsed.data;
   }
+  async explainMatch(prompt: string): Promise<string> {
+    const apiKey = env.AI_API_KEY;
+    if (!apiKey) {
+      throw new AppError(503, 'Gemini API key is not configured (AI_API_KEY)');
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(
+        `${GEMINI_API_URL}/models/${env.AI_MODEL}:generateContent`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.4,
+              maxOutputTokens: 200,
+            },
+          }),
+        },
+      );
+    } catch (error) {
+      logger.error('Gemini explainMatch request failed', error);
+      throw new AppError(502, 'AI provider is unreachable');
+    }
+
+    if (!response.ok) {
+      throw new AppError(502, `Gemini API error (${response.status})`);
+    }
+
+    const data = (await response.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    const text = data.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text ?? '')
+      .join('')
+      .trim();
+
+    if (!text) {
+      throw new AppError(502, 'AI provider returned an empty response');
+    }
+        return text;
+  }
 }

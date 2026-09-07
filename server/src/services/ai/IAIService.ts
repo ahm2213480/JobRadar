@@ -14,4 +14,10 @@ export interface IAIService {
    * cvAnalysisSchema before returning.
    */
   analyzeCV(rawText: string): Promise<CvAnalysis>;
+  /**
+   * Generates a short human-readable "why you match" explanation for a
+   * job-candidate pair. Implementations may throw — callers must handle
+   * failure gracefully and fall back to the deterministic score.
+   */
+  explainMatch(prompt: string): Promise<string>;
 }

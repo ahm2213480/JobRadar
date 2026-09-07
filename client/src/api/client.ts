@@ -8,6 +8,7 @@ import type {
   ManualJobInput,
   SyncSummary,
 } from '../types/job';
+import type { MatchResult } from '../types/matching';
 import type { PreferencesData, ProfileBundle, UserProfileData } from '../types/profile';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -235,4 +236,14 @@ export async function addManualJob(input: ManualJobInput): Promise<{ id: string 
     method: 'POST',
     body: JSON.stringify(input),
   });
+}
+
+// ---------------------------- Matching (Phase 5) ----------------------------
+
+export async function getMatch(jobId: string): Promise<MatchResult> {
+  return request<MatchResult>(`/matching/${jobId}`);
+}
+
+export async function getMatches(limit = 50): Promise<{ matches: MatchResult[]; total: number }> {
+  return request<{ matches: MatchResult[]; total: number }>(`/matching?limit=${limit}`);
 }
