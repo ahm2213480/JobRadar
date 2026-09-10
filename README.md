@@ -5,15 +5,15 @@ and professional profile, compares it against job descriptions, and produces a
 **transparent Match Score (0–100)** with a per-factor breakdown, an AI-written
 explanation, CV optimization suggestions, and skills-gap analysis.
 
-> **Status: Phase 9 — CV Optimizer & Skills Gap** (monorepo, API server, web
-> client, database schema + migrations, full JWT auth, profile + preferences,
-> CV intelligence with AI skill extraction, pluggable `IJobProvider` adapters
-> Remotive / Arbeitnow / RemoteOK / manual-paste with content-based
-> deduplication + 6-hour scheduler, deterministic weighted matching engine,
-> jobs dashboard with filters/pagination, job detail pages with match breakdown,
-> saved jobs + full application tracking with Kanban/notes/interviews, CV
-> optimizer, and skills-gap analysis with learning goals). Phase 10
-> (notifications + final polish) remains — see [Roadmap](#roadmap).
+> **Status: Phase 10 — Complete** (monorepo, API server, web client, database
+> schema + migrations, full JWT auth, profile + preferences, CV intelligence
+> with AI skill extraction, pluggable `IJobProvider` adapters for Remotive /
+> Arbeitnow / RemoteOK / manual-paste with content-based deduplication + 6-hour
+> scheduler, deterministic weighted matching engine, jobs dashboard with
+> filters/pagination, job detail pages with match breakdown, saved jobs + full
+> application tracking with Kanban/notes/interviews, CV optimizer, skills-gap
+> analysis with learning goals, and a full notifications system). Production
+> ready — see [Roadmap](#roadmap).
 
 ---
 
@@ -137,4 +137,4 @@ it live.
 | 6–7   | Jobs browsing (search/filters/pagination) + job detail pages + match breakdown ("Why you match") + dashboard                                      | ✅      |
 | 8     | Saved jobs + application tracking (Kanban, notes, interviews)                                                                                     | ✅      |
 | 9     | CV Optimizer + skills-gap + learning goals                                                                                                        | ✅      |
-| 10    | Notifications, final polish, documentation                                                                                                        | ⬜      |
+| 10    | Notifications, final polish, documentation                                                                                                        | ✅      |

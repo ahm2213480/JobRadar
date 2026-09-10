@@ -1,10 +1,33 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import * as api from '../../api/client';
 import { useAuth } from '../../context/auth-context';
 import { Button } from '../ui/Button';
 
 export function Header() {
   const { user, initializing, logout } = useAuth();
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+    let cancelled = false;
+    async function fetchCount() {
+      try {
+        const result = await api.getUnreadNotificationCount();
+        if (!cancelled) setUnreadCount(result.unread);
+      } catch {
+        // Non-critical — don't break the header.
+      }
+    }
+    void fetchCount();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   async function handleLogout() {
     await logout();
@@ -59,6 +82,24 @@ export function Header() {
                   className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
                 >
                   Preferences
+                </Link>
+                <Link
+                  to="/skills"
+                  className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+                >
+                  Skills
+                </Link>
+                <Link
+                  to="/notifications"
+                  className="relative text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+                  aria-label="Notifications"
+                >
+                  🔔
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-2 -top-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
                 <Link
                   to="/account"

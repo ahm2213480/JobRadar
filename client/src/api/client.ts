@@ -32,6 +32,11 @@ import type {
   SavedJobsListResponse,
   SavedStatusResponse,
 } from '../types/saved';
+import type {
+  MarkAllReadResponse,
+  NotificationsResponse,
+  UnreadCountResponse,
+} from '../types/notification';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
@@ -457,4 +462,32 @@ export async function optimizeCv(cvId: string, jobId: string): Promise<CvOptimiz
       body: JSON.stringify({ jobId } satisfies OptimizeCvInput),
     },
   );
+}
+
+// ------------------------- Notifications (Phase 10) -------------------------
+
+export async function listNotifications(): Promise<NotificationsResponse> {
+  return request<NotificationsResponse>('/notifications');
+}
+
+export async function getUnreadNotificationCount(): Promise<UnreadCountResponse> {
+  return request<UnreadCountResponse>('/notifications/unread-count');
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  return request<void>(`/notifications/${encodeURIComponent(id)}/read`, {
+    method: 'PATCH',
+  });
+}
+
+export async function markAllNotificationsRead(): Promise<MarkAllReadResponse> {
+  return request<MarkAllReadResponse>('/notifications/read-all', {
+    method: 'PATCH',
+  });
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  return request<void>(`/notifications/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
 }
