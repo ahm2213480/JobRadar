@@ -6,6 +6,7 @@ import jobsRouter from '../modules/jobs/jobs.routes';
 import matchingRouter from '../modules/matching/matching.routes';
 import profileRouter from '../modules/profile/profile.routes';
 import savedRouter from '../modules/saved/saved.routes';
+import skillsRouter from '../modules/skills/skills.routes';
 import { healthRouter } from './health.routes';
 
 export const apiRouter = Router();
@@ -17,4 +18,5 @@ apiRouter.use('/cv', cvRouter);
 apiRouter.use('/jobs', jobsRouter);
 apiRouter.use('/matching', matchingRouter);
 apiRouter.use('/saved', savedRouter);
+apiRouter.use('/skills', skillsRouter);
 apiRouter.use('/applications', applicationsRouter);

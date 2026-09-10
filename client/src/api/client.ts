@@ -7,9 +7,15 @@ import type {
   CreateApplicationInput,
   CreateApplicationNoteInput,
   CreateInterviewInput,
+  CreateLearningGoalInput,
+  CvOptimizerResult,
   Interview,
+  LearningGoal,
+  OptimizeCvInput,
+  SkillsGapResponse,
   UpdateApplicationInput,
   UpdateInterviewInput,
+  UpdateLearningGoalInput,
 } from '../types/application';
 import type { CvAnalysisResult, CvRecord } from '../types/cv';
 import type {
@@ -403,5 +409,52 @@ export async function deleteApplicationInterview(
   return request<void>(
     `/applications/${encodeURIComponent(applicationId)}/interviews/${encodeURIComponent(interviewId)}`,
     { method: 'DELETE' },
+  );
+}
+
+// ------------------------- Skills gap (Phase 9) -------------------------
+
+export async function getSkillsGap(): Promise<SkillsGapResponse> {
+  return request<SkillsGapResponse>('/skills/gap');
+}
+
+export async function listLearningGoals(): Promise<LearningGoal[]> {
+  return request<LearningGoal[]>('/skills/learning-goals');
+}
+
+export async function createLearningGoal(
+  input: CreateLearningGoalInput,
+): Promise<LearningGoal> {
+  return request<LearningGoal>('/skills/learning-goals', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateLearningGoal(
+  id: string,
+  input: UpdateLearningGoalInput,
+): Promise<LearningGoal> {
+  return request<LearningGoal>(`/skills/learning-goals/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteLearningGoal(id: string): Promise<void> {
+  return request<void>(`/skills/learning-goals/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+// ------------------------- CV Optimizer (Phase 9) -------------------------
+
+export async function optimizeCv(cvId: string, jobId: string): Promise<CvOptimizerResult> {
+  return request<CvOptimizerResult>(
+    `/cv/${encodeURIComponent(cvId)}/optimize`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ jobId } satisfies OptimizeCvInput),
+    },
   );
 }

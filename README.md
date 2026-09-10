@@ -5,28 +5,31 @@ and professional profile, compares it against job descriptions, and produces a
 **transparent Match Score (0–100)** with a per-factor breakdown, an AI-written
 explanation, CV optimization suggestions, and skills-gap analysis.
 
-> **Status: Phase 5 — Matching Engine** (monorepo, API server, web client,
-> database schema + migrations, full JWT auth, profile + preferences, CV
-> intelligence with AI skill extraction, pluggable `IJobProvider` adapters for
+> **Status: Phase 9 — CV Optimizer & Skills Gap** (monorepo, API server, web
+> client, database schema + migrations, full JWT auth, profile + preferences,
+> CV intelligence with AI skill extraction, pluggable `IJobProvider` adapters
 > Remotive / Arbeitnow / RemoteOK / manual-paste with content-based
-> deduplication + 6-hour scheduler, and a **deterministic weighted matching
-> engine** with per-factor breakdowns and AI-written explanations). The
-> dashboard and application-tracking UI arrive in the following phases — see
-> [Roadmap](#roadmap).
+> deduplication + 6-hour scheduler, deterministic weighted matching engine,
+> jobs dashboard with filters/pagination, job detail pages with match breakdown,
+> saved jobs + full application tracking with Kanban/notes/interviews, CV
+> optimizer, and skills-gap analysis with learning goals). Phase 10
+> (notifications + final polish) remains — see [Roadmap](#roadmap).
 
 ---
 
 ## Tech stack
 
-| Layer     | Technology                                          |
-| --------- | --------------------------------------------------- |
-| Frontend  | React 19 + Vite + TypeScript + React Router + Tailwind CSS 4 |
-| Backend   | Node.js + Express 5 + TypeScript (Vitest for unit tests) |
-| Database  | PostgreSQL (Neon in development) + Prisma ORM       |
-| Auth      | JWT (access + refresh) with rotation + revocation — Phase 1 |
-| AI        | Pluggable `IAIService` provider adapters (Gemini / heuristic fallback) — Phase 3 |
-| Job feeds | Pluggable `IJobProvider` adapters (Remotive, Arbeitnow, RemoteOK, manual/LinkedIn-paste) — Phase 4 |
-| Matching  | Deterministic weighted `IMatchingService` — Phase 5 |
+| Layer      | Technology                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------------- |
+| Frontend   | React 19 + Vite + TypeScript + React Router + Tailwind CSS 4                                         |
+| Backend    | Node.js + Express 5 + TypeScript (Vitest for unit tests)                                             |
+| Database   | PostgreSQL (Neon in development) + Prisma ORM                                                        |
+| Auth       | JWT (access + refresh) with rotation + revocation — Phase 1                                          |
+| AI         | Pluggable `IAIService` provider adapters (Gemini / heuristic fallback) — Phase 3                     |
+| Job feeds  | Pluggable `IJobProvider` adapters (Remotive, Arbeitnow, RemoteOK, manual/LinkedIn-paste) — Phase 4  |
+| Matching   | Deterministic weighted `IMatchingService` — Phase 5                                                  |
+| Skills     | Skills-gap analysis + learning goals — Phase 9                                                       |
+| Tracking   | Applications Kanban + notes + interviews — Phase 8                                                   |
 
 External services sit behind interfaces (`IAIService`, `IJobProvider`,
 `ICVParser`, `IMatchingService`) so any provider can be swapped without
@@ -40,9 +43,9 @@ JobRadar/
 ├─ client/                 # React SPA (Vite + TS)
 │  └─ src/
 │     ├─ api/              # HTTP client + typed endpoints
-│     ├─ components/       # Reusable UI (layout/, ui/, jobs/, cv/, matching/)
+│     ├─ components/       # Reusable UI (layout/, ui/, jobs/, cv/, matching/, applications/)
 │     ├─ context/          # Auth session (silent refresh) + theme
-│     ├─ pages/            # Route pages (jobs, job detail, match, profile, CV…)
+│     ├─ pages/            # Route pages (dashboard, jobs, job detail, match, applications, profile, CV, skills…)
 │     └─ types/            # Shared DTO shapes
 ├─ server/                 # Express API (TS, CommonJS build)
 │  ├─ prisma/
@@ -51,10 +54,10 @@ JobRadar/
 │  └─ src/
 │     ├─ config/           # env (zod-validated), prisma client, logger
 │     ├─ middleware/       # error handler, 404, auth (JWT), upload, validate
-│     ├─ modules/          # auth / profile / cv / jobs / matching (routes+controllers+schemas)
+│     ├─ modules/          # auth / profile / cv / jobs / matching / saved / skills / applications
 │     ├─ routes/           # /api router (all feature routers registered)
 │     ├─ scheduler/        # node-cron job-feed sync (every 6 h)
-│     └─ services/         # ai/ (gemini + heuristic fallback), cv/ (parsers),
+│     └─ services/         # ai/ (gemini + heuristic fallback), cv/ (parsers + optimizer),
 │                          # jobs/ (remotive/arbeitnow/remoteok), matching/ (weighted engine + tests)
 └─ package.json            # npm workspaces + shared scripts
 ```
@@ -94,19 +97,19 @@ it live.
 
 ## Useful scripts (run from the repo root)
 
-| Script                | Purpose                                    |
-| --------------------- | ------------------------------------------ |
-| `npm run dev`         | API + web dev servers together             |
-| `npm run dev:server`  | API only (`tsx watch`, port 4000)          |
-| `npm run dev:client`  | Web only (Vite, port 5173)                 |
-| `npm run build`       | Type-check + build both workspaces         |
-| `npm run typecheck`   | `tsc --noEmit` for both workspaces         |
-| `npm run lint`        | ESLint for both workspaces                 |
-| `npm test`            | Matching-engine unit tests (Vitest)        |
-| `npm run format`      | Prettier write                             |
-| `npm run db:deploy`   | Apply pending migrations (`migrate deploy`) |
-| `npm run db:migrate`  | Create/apply a dev migration (`migrate dev`) |
-| `npm run db:studio`   | Prisma Studio (browse data)                |
+| Script               | Purpose                                      |
+| -------------------- | -------------------------------------------- |
+| `npm run dev`        | API + web dev servers together               |
+| `npm run dev:server` | API only (`tsx watch`, port 4000)            |
+| `npm run dev:client` | Web only (Vite, port 5173)                   |
+| `npm run build`      | Type-check + build both workspaces           |
+| `npm run typecheck`  | `tsc --noEmit` for both workspaces           |
+| `npm run lint`       | ESLint for both workspaces                   |
+| `npm test`           | Matching-engine unit tests (Vitest) — run from `server/` |
+| `npm run format`     | Prettier write                               |
+| `npm run db:deploy`  | Apply pending migrations (`migrate deploy`)  |
+| `npm run db:migrate` | Create/apply a dev migration (`migrate dev`) |
+| `npm run db:studio`  | Prisma Studio (browse data)                  |
 
 ## Security notes
 
@@ -123,15 +126,15 @@ it live.
 
 ## Roadmap
 
-| Phase | Scope                                                                 |
-| ----- | --------------------------------------------------------------------- |
-| 0 ✅  | Monorepo, API + client foundations, Prisma schema + initial migration |
-| 1 ✅  | Authentication (register/login/logout, JWT + refresh rotation, session revocation, protected routes) |
-| 2 ✅  | Profile + preferences (user profile editor, job-preference editor, transparent completion score) |
-| 3 ✅  | CV upload + parsing (PDF/DOCX, magic-byte verified) + AI extraction → user skills & profile auto-fill |
-| 4 ✅  | Job source adapters (Remotive, Arbeitnow, RemoteOK, manual/LinkedIn-paste) + ingestion + deduplication + skill auto-extraction + 6-hour scheduler |
-| 5 ✅  | Transparent weighted matching engine (7 documented factors) + AI explanations + unit tests |
-| 6–7 ✅ | Jobs browsing (search/filters/pagination) + job detail pages + match breakdown ("Why you match") + dashboard |
-| 8     | Saved jobs + application tracking (Kanban, notes, interviews)         |
-| 9     | CV Optimizer + skills-gap + learning goals                            |
-| 10    | Notifications, polish, tests, documentation                           |
+| Phase | Scope                                                                                                                                             | Status |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 0     | Monorepo, API + client foundations, Prisma schema + initial migration                                                                             | ✅      |
+| 1     | Authentication (register/login/logout, JWT + refresh rotation, session revocation, protected routes)                                              | ✅      |
+| 2     | Profile + preferences (user profile editor, job-preference editor, transparent completion score)                                                  | ✅      |
+| 3     | CV upload + parsing (PDF/DOCX, magic-byte verified) + AI extraction → user skills & profile auto-fill                                             | ✅      |
+| 4     | Job source adapters (Remotive, Arbeitnow, RemoteOK, manual/LinkedIn-paste) + ingestion + deduplication + skill auto-extraction + 6-hour scheduler | ✅      |
+| 5     | Transparent weighted matching engine (7 documented factors) + AI explanations + unit tests                                                        | ✅      |
+| 6–7   | Jobs browsing (search/filters/pagination) + job detail pages + match breakdown ("Why you match") + dashboard                                      | ✅      |
+| 8     | Saved jobs + application tracking (Kanban, notes, interviews)                                                                                     | ✅      |
+| 9     | CV Optimizer + skills-gap + learning goals                                                                                                        | ✅      |
+| 10    | Notifications, final polish, documentation                                                                                                        | ⬜      |

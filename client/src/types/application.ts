@@ -89,6 +89,60 @@ export interface UpdateApplicationStatusInput {
   status: ApplicationStatus;
 }
 
+// ------------------------------ Phase 9 ------------------------------
+
+export interface SkillGapItem {
+  skillId: string;
+  name: string;
+  category: string;
+  demandCount: number;
+  demandPct: number;
+  owned: boolean;
+}
+
+export interface SkillsGapResponse {
+  totalJobs: number;
+  gaps: SkillGapItem[];
+  strengths: SkillGapItem[];
+}
+
+export interface LearningGoal {
+  id: string;
+  skillId: string;
+  skillName: string;
+  status: 'ACTIVE' | 'COMPLETED';
+  dueDate: string | null;
+  createdAt: string;
+}
+
+export interface CreateLearningGoalInput {
+  skillId: string;
+  dueDate?: string;
+}
+
+export interface UpdateLearningGoalInput {
+  status?: 'ACTIVE' | 'COMPLETED';
+  dueDate?: string | null;
+}
+
+export interface CvOptimizerResult {
+  jobId: string;
+  jobTitle: string;
+  cvId: string;
+  cvFileName: string;
+  cvMatchPct: number;
+  matchedRequired: string[];
+  matchedPreferred: string[];
+  missingRequired: string[];
+  missingPreferred: string[];
+  suggestions: string[] | null;
+  aiUsed: boolean;
+}
+
+export interface OptimizeCvInput {
+  jobId: string;
+}
+
 // ------------------------------ Notes ------------------------------
 
 export interface ApplicationNote {
