@@ -3,6 +3,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Header } from './components/layout/Header';
 import { AuthProvider } from './context/AuthContext';
 import { AccountPage } from './pages/AccountPage';
+import { ApplicationsPage } from './pages/ApplicationsPage';
 import { CVPage } from './pages/CVPage';
 import { HomePage } from './pages/HomePage';
 import { JobDetailPage } from './pages/JobDetailPage';
@@ -11,6 +12,7 @@ import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
+import { SavedJobsPage } from './pages/SavedJobsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { MatchPage } from './components/matching/MatchPage';
 
@@ -69,6 +71,22 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <JobMatchRoute />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/saved"
+                element={
+                  <ProtectedRoute>
+                    <SavedJobsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/applications"
+                element={
+                  <ProtectedRoute>
+                    <ApplicationsPage />
                   </ProtectedRoute>
                 }
               />

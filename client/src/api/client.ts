@@ -1,4 +1,11 @@
 import type { AuthSuccessResponse, AuthUser, RefreshResponse } from '../types/auth';
+import type {
+  ApplicationListItem,
+  ApplicationsListResponse,
+  ApplicationStatus,
+  CreateApplicationInput,
+  UpdateApplicationInput,
+} from '../types/application';
 import type { CvAnalysisResult, CvRecord } from '../types/cv';
 import type {
   JobListItem,
@@ -10,6 +17,10 @@ import type {
 } from '../types/job';
 import type { MatchResult } from '../types/matching';
 import type { PreferencesData, ProfileBundle, UserProfileData } from '../types/profile';
+import type {
+  SavedJobsListResponse,
+  SavedStatusResponse,
+} from '../types/saved';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
@@ -246,4 +257,70 @@ export async function getMatch(jobId: string): Promise<MatchResult> {
 
 export async function getMatches(limit = 50): Promise<{ matches: MatchResult[]; total: number }> {
   return request<{ matches: MatchResult[]; total: number }>(`/matching?limit=${limit}`);
+}
+
+// ---------------------------- Saved jobs (Phase 8, Step 1) ----------------------------
+
+export async function listSavedJobs(): Promise<SavedJobsListResponse> {
+  return request<SavedJobsListResponse>('/saved');
+}
+
+export async function saveJob(jobId: string): Promise<SavedStatusResponse> {
+  return request<SavedStatusResponse>(`/saved/${encodeURIComponent(jobId)}`, {
+    method: 'POST',
+  });
+}
+
+export async function unsaveJob(jobId: string): Promise<void> {
+  return request<void>(`/saved/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+}
+
+export async function isJobSaved(jobId: string): Promise<SavedStatusResponse> {
+  return request<SavedStatusResponse>(`/saved/${encodeURIComponent(jobId)}`);
+}
+
+// ------------------------- Applications (Phase 8, Step 2) -------------------------
+
+export async function listApplications(): Promise<ApplicationsListResponse> {
+  return request<ApplicationsListResponse>('/applications');
+}
+
+export async function getApplication(id: string): Promise<ApplicationListItem> {
+  return request<ApplicationListItem>(`/applications/${encodeURIComponent(id)}`);
+}
+
+export async function createApplication(
+  input: CreateApplicationInput,
+): Promise<ApplicationListItem> {
+  return request<ApplicationListItem>('/applications', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateApplication(
+  id: string,
+  input: UpdateApplicationInput,
+): Promise<ApplicationListItem> {
+  return request<ApplicationListItem>(`/applications/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateApplicationStatus(
+  id: string,
+  status: ApplicationStatus,
+): Promise<ApplicationListItem> {
+  return request<ApplicationListItem>(
+    `/applications/${encodeURIComponent(id)}/status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    },
+  );
+}
+
+export async function deleteApplication(id: string): Promise<void> {
+  return request<void>(`/applications/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }

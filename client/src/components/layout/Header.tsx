@@ -31,6 +31,18 @@ export function Header() {
                   Jobs
                 </Link>
                 <Link
+                  to="/saved"
+                  className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+                >
+                  Saved
+                </Link>
+                <Link
+                  to="/applications"
+                  className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+                >
+                  Applications
+                </Link>
+                <Link
                   to="/cv"
                   className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
                 >

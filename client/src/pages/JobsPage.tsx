@@ -31,6 +31,9 @@ export function JobsPage() {
   const [sources, setSources] = useState<JobSourceInfo[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<SyncSummary | null>(null);
+  // Known saved job IDs — fetched once per list load so cards render the
+  // correct state without one status request per card.
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -38,16 +41,20 @@ export function JobsPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.listJobs({
-        q: q || undefined,
-        workMode: workMode || undefined,
-        location: location || undefined,
-        source: source || undefined,
-        limit: PAGE_SIZE,
-        offset: page * PAGE_SIZE,
-      });
+      const [result, saved] = await Promise.all([
+        api.listJobs({
+          q: q || undefined,
+          workMode: workMode || undefined,
+          location: location || undefined,
+          source: source || undefined,
+          limit: PAGE_SIZE,
+          offset: page * PAGE_SIZE,
+        }),
+        api.listSavedJobs().catch(() => ({ savedJobs: [], total: 0 })),
+      ]);
       setJobs(result.jobs);
       setTotal(result.total);
+      setSavedIds(new Set(saved.savedJobs.map((entry) => entry.id)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load jobs');
     } finally {
@@ -182,7 +189,22 @@ export function JobsPage() {
         <>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {jobs.map((job) => (
-              <JobCard key={job.id} job={job} />
+              <JobCard
+                key={job.id}
+                job={job}
+                initialSaved={savedIds.has(job.id)}
+                onSavedChange={(next) => {
+                  setSavedIds((prev) => {
+                    const copy = new Set(prev);
+                    if (next) {
+                      copy.add(job.id);
+                    } else {
+                      copy.delete(job.id);
+                    }
+                    return copy;
+                  });
+                }}
+              />
             ))}
           </div>
           <PaginationBar

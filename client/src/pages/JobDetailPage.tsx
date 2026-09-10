@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as api from '../api/client';
+import { SaveJobButton } from '../components/jobs/SaveJobButton';
 import { Button } from '../components/ui/Button';
 import type { JobListItem } from '../types/job';
 
@@ -34,8 +35,10 @@ function formatSalary(
 
 export function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [job, setJob] = useState<JobListItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialSaved, setInitialSaved] = useState<boolean | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,9 +46,13 @@ export function JobDetailPage() {
     let cancelled = false;
     (async () => {
       try {
-        const data = await api.getJob(id);
+        const [data, saved] = await Promise.all([
+          api.getJob(id),
+          api.isJobSaved(id).catch(() => ({ saved: false })),
+        ]);
         if (cancelled) return;
         setJob(data);
+        setInitialSaved(saved.saved);
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load job');
@@ -125,6 +132,10 @@ export function JobDetailPage() {
           <Link to={'/jobs/' + job.id + '/match'}>
             <Button>View Match Score</Button>
           </Link>
+          <Button variant="ghost" onClick={() => void navigate(`/applications?new=1&jobId=${job.id}`)}>
+            Track Application
+          </Button>
+          <SaveJobButton job={job} size="md" initialSaved={initialSaved} />
           {job.url && (
             <a href={job.url} target="_blank" rel="noopener noreferrer">
               <Button variant="ghost">Apply on {job.source.name}</Button>

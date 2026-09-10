@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { JobListItem } from '../../types/job';
+import { SaveJobButton } from './SaveJobButton';
 
 const WORK_MODE_LABELS: Record<string, string> = {
   REMOTE: 'Remote',
@@ -29,7 +30,19 @@ function formatSalary(
   return formatter(min ?? max ?? 0);
 }
 
-export function JobCard({ job }: { job: JobListItem }) {
+export function JobCard({
+  job,
+  saved,
+  initialSaved,
+  onSavedChange,
+}: {
+  job: JobListItem;
+  /** Hint that this card is rendered inside the /saved list (affects empty-list UX only). */
+  saved?: boolean;
+  /** Known saved state — passed from parents that already fetched it (avoids a request). */
+  initialSaved?: boolean;
+  onSavedChange?: (saved: boolean) => void;
+}) {
   const salary = formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency);
   const posted = job.postedAt
     ? new Date(job.postedAt).toLocaleDateString()
@@ -83,13 +96,21 @@ export function JobCard({ job }: { job: JobListItem }) {
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <Link
           to={`/jobs/${job.id}`}
           className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
         >
           View details →
         </Link>
+        <SaveJobButton
+          job={job}
+          initialSaved={initialSaved ?? saved}
+          onChanged={(next) => {
+            // On the /saved page an unsave means the card should disappear.
+            onSavedChange?.(next);
+          }}
+        />
         {job.url ? (
           <a
             href={job.url}
