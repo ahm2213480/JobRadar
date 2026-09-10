@@ -61,10 +61,95 @@ export interface CreateApplicationInput {
   cvId?: string;
 }
 
+// Clearable fields are declared only on the right so `null` isn't lost by the
+// intersection narrowing: (string | undefined) & (string | null) == string.
 export type UpdateApplicationInput = Partial<
-  Omit<CreateApplicationInput, 'jobId' | 'companyName'>
->;
+  Omit<
+    CreateApplicationInput,
+    | 'jobId'
+    | 'companyName'
+    | 'url'
+    | 'appliedAt'
+    | 'salaryText'
+    | 'contactName'
+    | 'contactEmail'
+    | 'cvId'
+  >
+> & {
+  /** Explicit null clears the value (e.g. empty URL). */
+  url?: string | null;
+  appliedAt?: string | null;
+  salaryText?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  cvId?: string | null;
+};
 
 export interface UpdateApplicationStatusInput {
   status: ApplicationStatus;
 }
+
+// ------------------------------ Notes ------------------------------
+
+export interface ApplicationNote {
+  id: string;
+  applicationId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface CreateApplicationNoteInput {
+  body: string;
+}
+
+// ---------------------------- Interviews ----------------------------
+
+/** Mirrors the Prisma InterviewType enum exactly — never add custom values. */
+export type InterviewType =
+  | 'PHONE_SCREENING'
+  | 'TECHNICAL'
+  | 'HR'
+  | 'FINAL'
+  | 'ONSITE'
+  | 'OTHER';
+
+/** Mirrors the Prisma InterviewOutcome enum exactly. */
+export type InterviewOutcome = 'PENDING' | 'PASSED' | 'FAILED';
+
+export const INTERVIEW_TYPES: InterviewType[] = [
+  'PHONE_SCREENING',
+  'TECHNICAL',
+  'HR',
+  'FINAL',
+  'ONSITE',
+  'OTHER',
+];
+
+export const INTERVIEW_OUTCOMES: InterviewOutcome[] = ['PENDING', 'PASSED', 'FAILED'];
+
+export interface Interview {
+  id: string;
+  applicationId: string;
+  scheduledAt: string;
+  type: InterviewType;
+  locationOrLink: string | null;
+  notes: string | null;
+  outcome: InterviewOutcome;
+  createdAt: string;
+}
+
+export interface CreateInterviewInput {
+  scheduledAt: string;
+  type?: InterviewType;
+  locationOrLink?: string;
+  notes?: string;
+  outcome?: InterviewOutcome;
+}
+
+export type UpdateInterviewInput = Partial<
+  Pick<CreateInterviewInput, 'type' | 'outcome'>
+> & {
+  scheduledAt?: string;
+  locationOrLink?: string | null;
+  notes?: string | null;
+};

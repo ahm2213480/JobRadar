@@ -1,10 +1,15 @@
 import type { AuthSuccessResponse, AuthUser, RefreshResponse } from '../types/auth';
 import type {
   ApplicationListItem,
+  ApplicationNote,
   ApplicationsListResponse,
   ApplicationStatus,
   CreateApplicationInput,
+  CreateApplicationNoteInput,
+  CreateInterviewInput,
+  Interview,
   UpdateApplicationInput,
+  UpdateInterviewInput,
 } from '../types/application';
 import type { CvAnalysisResult, CvRecord } from '../types/cv';
 import type {
@@ -323,4 +328,80 @@ export async function updateApplicationStatus(
 
 export async function deleteApplication(id: string): Promise<void> {
   return request<void>(`/applications/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+// ------------------------- Application notes (Phase 8, Step 3) -------------------------
+
+export async function listApplicationNotes(applicationId: string): Promise<ApplicationNote[]> {
+  return request<ApplicationNote[]>(
+    `/applications/${encodeURIComponent(applicationId)}/notes`,
+  );
+}
+
+export async function addApplicationNote(
+  applicationId: string,
+  input: CreateApplicationNoteInput,
+): Promise<ApplicationNote> {
+  return request<ApplicationNote>(
+    `/applications/${encodeURIComponent(applicationId)}/notes`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function deleteApplicationNote(
+  applicationId: string,
+  noteId: string,
+): Promise<void> {
+  return request<void>(
+    `/applications/${encodeURIComponent(applicationId)}/notes/${encodeURIComponent(noteId)}`,
+    { method: 'DELETE' },
+  );
+}
+
+// ----------------------- Application interviews (Phase 8, Step 3) -----------------------
+
+export async function listApplicationInterviews(applicationId: string): Promise<Interview[]> {
+  return request<Interview[]>(
+    `/applications/${encodeURIComponent(applicationId)}/interviews`,
+  );
+}
+
+export async function createApplicationInterview(
+  applicationId: string,
+  input: CreateInterviewInput,
+): Promise<Interview> {
+  return request<Interview>(
+    `/applications/${encodeURIComponent(applicationId)}/interviews`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function updateApplicationInterview(
+  applicationId: string,
+  interviewId: string,
+  input: UpdateInterviewInput,
+): Promise<Interview> {
+  return request<Interview>(
+    `/applications/${encodeURIComponent(applicationId)}/interviews/${encodeURIComponent(interviewId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function deleteApplicationInterview(
+  applicationId: string,
+  interviewId: string,
+): Promise<void> {
+  return request<void>(
+    `/applications/${encodeURIComponent(applicationId)}/interviews/${encodeURIComponent(interviewId)}`,
+    { method: 'DELETE' },
+  );
 }

@@ -2,7 +2,12 @@ import type { ApplicationStatus, Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../utils/AppError';
 import type { JobListItem } from '../jobs/jobs.service';
-import type { CreateApplicationInput, UpdateApplicationInput } from './applications.schemas';
+import type {
+  CreateApplicationInput,
+  CreateInterviewInput,
+  UpdateApplicationInput,
+  UpdateInterviewInput,
+} from './applications.schemas';
 
 // Same job include used by the jobs/saved modules so embedded cards render
 // identically everywhere.
@@ -302,5 +307,178 @@ export async function deleteApplication(userId: string, applicationId: string): 
   });
   if (result.count === 0) {
     throw new AppError(404, 'Application not found');
+  }
+}
+
+// ------------------------------ Notes ------------------------------
+// Ownership is always verified through the parent Application first (the
+// note/interview rows themselves have no userId). Unauthorized or nonexistent
+// parents both surface as 404 so we never leak whether another user's
+// application exists.
+
+async function assertOwnedApplication(userId: string, applicationId: string): Promise<void> {
+  const app = await prisma.application.findFirst({
+    where: { id: applicationId, userId },
+    select: { id: true },
+  });
+  if (!app) throw new AppError(404, 'Application not found');
+}
+
+export interface ApplicationNoteListItem {
+  id: string;
+  applicationId: string;
+  body: string;
+  createdAt: string;
+}
+
+export async function listNotes(
+  userId: string,
+  applicationId: string,
+): Promise<ApplicationNoteListItem[]> {
+  await assertOwnedApplication(userId, applicationId);
+  const rows = await prisma.applicationNote.findMany({
+    where: { applicationId },
+    orderBy: { createdAt: 'desc' },
+  });
+  return rows.map((note) => ({
+    id: note.id,
+    applicationId: note.applicationId,
+    body: note.body,
+    createdAt: note.createdAt.toISOString(),
+  }));
+}
+
+export async function createNote(
+  userId: string,
+  applicationId: string,
+  body: string,
+): Promise<ApplicationNoteListItem> {
+  await assertOwnedApplication(userId, applicationId);
+  const note = await prisma.applicationNote.create({
+    data: { applicationId, body },
+  });
+  return {
+    id: note.id,
+    applicationId: note.applicationId,
+    body: note.body,
+    createdAt: note.createdAt.toISOString(),
+  };
+}
+
+export async function deleteNote(
+  userId: string,
+  applicationId: string,
+  noteId: string,
+): Promise<void> {
+  await assertOwnedApplication(userId, applicationId);
+  const result = await prisma.applicationNote.deleteMany({ where: { id: noteId, applicationId } });
+  if (result.count === 0) {
+    throw new AppError(404, 'Note not found');
+  }
+}
+
+// ---------------------------- Interviews ----------------------------
+
+export interface InterviewListItem {
+  id: string;
+  applicationId: string;
+  scheduledAt: string;
+  type: string;
+  locationOrLink: string | null;
+  notes: string | null;
+  outcome: string;
+  createdAt: string;
+}
+
+function toInterview(row: {
+  id: string;
+  applicationId: string;
+  scheduledAt: Date;
+  type: string;
+  locationOrLink: string | null;
+  notes: string | null;
+  outcome: string;
+  createdAt: Date;
+}): InterviewListItem {
+  return {
+    id: row.id,
+    applicationId: row.applicationId,
+    scheduledAt: row.scheduledAt.toISOString(),
+    type: row.type,
+    locationOrLink: row.locationOrLink,
+    notes: row.notes,
+    outcome: row.outcome,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+export async function listInterviews(
+  userId: string,
+  applicationId: string,
+): Promise<InterviewListItem[]> {
+  await assertOwnedApplication(userId, applicationId);
+  const rows = await prisma.interview.findMany({
+    where: { applicationId },
+    orderBy: { scheduledAt: 'asc' },
+  });
+  return rows.map(toInterview);
+}
+
+export async function createInterview(
+  userId: string,
+  applicationId: string,
+  input: CreateInterviewInput,
+): Promise<InterviewListItem> {
+  await assertOwnedApplication(userId, applicationId);
+  const row = await prisma.interview.create({
+    data: {
+      applicationId,
+      scheduledAt: new Date(input.scheduledAt),
+      type: input.type ?? 'TECHNICAL',
+      locationOrLink: input.locationOrLink ?? null,
+      notes: input.notes ?? null,
+      outcome: input.outcome ?? 'PENDING',
+    },
+  });
+  return toInterview(row);
+}
+
+export async function updateInterview(
+  userId: string,
+  applicationId: string,
+  interviewId: string,
+  input: UpdateInterviewInput,
+): Promise<InterviewListItem> {
+  await assertOwnedApplication(userId, applicationId);
+  // Confirm the interview actually belongs to this application before touching
+  // it, so a mismatched id/applicationId pair can never cross user boundaries.
+  const existing = await prisma.interview.findFirst({
+    where: { id: interviewId, applicationId },
+    select: { id: true },
+  });
+  if (!existing) {
+    throw new AppError(404, 'Interview not found');
+  }
+
+  const data: Prisma.InterviewUncheckedUpdateInput = {};
+  if (input.scheduledAt !== undefined) data.scheduledAt = new Date(input.scheduledAt);
+  if (input.type !== undefined) data.type = input.type;
+  if (input.locationOrLink !== undefined) data.locationOrLink = input.locationOrLink;
+  if (input.notes !== undefined) data.notes = input.notes;
+  if (input.outcome !== undefined) data.outcome = input.outcome;
+
+  const row = await prisma.interview.update({ where: { id: interviewId }, data });
+  return toInterview(row);
+}
+
+export async function deleteInterview(
+  userId: string,
+  applicationId: string,
+  interviewId: string,
+): Promise<void> {
+  await assertOwnedApplication(userId, applicationId);
+  const result = await prisma.interview.deleteMany({ where: { id: interviewId, applicationId } });
+  if (result.count === 0) {
+    throw new AppError(404, 'Interview not found');
   }
 }

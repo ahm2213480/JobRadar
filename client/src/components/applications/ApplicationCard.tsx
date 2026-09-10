@@ -82,6 +82,12 @@ export function ApplicationCard({
           disabled={busy || error !== null}
           onChange={(event) => void handleStatusChange(event.target.value)}
         />
+        <Link
+          to={`/applications/${application.id}`}
+          className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+        >
+          View details →
+        </Link>
         <Button
           variant="ghost"
           disabled={busy || error !== null}

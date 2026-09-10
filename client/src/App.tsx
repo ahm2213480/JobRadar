@@ -3,6 +3,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Header } from './components/layout/Header';
 import { AuthProvider } from './context/AuthContext';
 import { AccountPage } from './pages/AccountPage';
+import { ApplicationDetailPage } from './pages/ApplicationDetailPage';
 import { ApplicationsPage } from './pages/ApplicationsPage';
 import { CVPage } from './pages/CVPage';
 import { HomePage } from './pages/HomePage';
@@ -87,6 +88,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <ApplicationsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/applications/:id"
+                element={
+                  <ProtectedRoute>
+                    <ApplicationDetailPage />
                   </ProtectedRoute>
                 }
               />

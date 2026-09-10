@@ -99,3 +99,65 @@ export const updateApplicationStatusSchema = z.object({
 });
 
 export type UpdateApplicationStatusInput = z.infer<typeof updateApplicationStatusSchema>;
+
+// ------------------------------ Notes ------------------------------
+
+export const createNoteSchema = z.object({
+  body: z.string().trim().min(1, 'Note text is required').max(5000, 'Note is too long'),
+});
+
+export type CreateNoteInput = z.infer<typeof createNoteSchema>;
+
+/** Params for the nested note routes — the parent application id plus note id. */
+export const noteIdParamSchema = z.object({
+  id: z.string().trim().min(1).max(100),
+  noteId: z.string().trim().min(1, 'Note ID is required').max(100),
+});
+
+// ---------------------------- Interviews ----------------------------
+
+// Mirrors the Prisma InterviewType enum exactly — never add custom values.
+export const INTERVIEW_TYPES = [
+  'PHONE_SCREENING',
+  'TECHNICAL',
+  'HR',
+  'FINAL',
+  'ONSITE',
+  'OTHER',
+] as const;
+
+export const interviewTypeSchema = z.enum(INTERVIEW_TYPES);
+
+// Mirrors the Prisma InterviewOutcome enum exactly.
+export const INTERVIEW_OUTCOMES = ['PENDING', 'PASSED', 'FAILED'] as const;
+
+export const interviewOutcomeSchema = z.enum(INTERVIEW_OUTCOMES);
+
+export const createInterviewSchema = z.object({
+  scheduledAt: isoDateString,
+  type: interviewTypeSchema.optional(),
+  locationOrLink: z.string().trim().max(500, 'Location/link is too long').optional(),
+  notes: z.string().trim().max(5000, 'Interview notes are too long').optional(),
+  outcome: interviewOutcomeSchema.optional(),
+});
+
+export type CreateInterviewInput = z.infer<typeof createInterviewSchema>;
+
+// All fields optional; `.nullable()` lets the client explicitly clear a value.
+export const updateInterviewSchema = z
+  .object({
+    scheduledAt: isoDateString.optional(),
+    type: interviewTypeSchema.optional(),
+    locationOrLink: z.string().trim().max(500).nullable().optional(),
+    notes: z.string().trim().max(5000).nullable().optional(),
+    outcome: interviewOutcomeSchema.optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, 'Provide at least one field to update');
+
+export type UpdateInterviewInput = z.infer<typeof updateInterviewSchema>;
+
+/** Params for the nested interview routes — parent application id plus interview id. */
+export const interviewIdParamSchema = z.object({
+  id: z.string().trim().min(1).max(100),
+  interviewId: z.string().trim().min(1, 'Interview ID is required').max(100),
+});
