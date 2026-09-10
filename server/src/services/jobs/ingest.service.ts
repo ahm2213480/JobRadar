@@ -61,24 +61,26 @@ interface StoredSkill {
  * Unknown technical tags are promoted to new Skill rows so the vocabulary
  * grows with the data instead of remaining static.
  */
-async function linkJobSkills(jobId: string, text: string): Promise<void> {
+async function linkJobSkills(jobId: string, text: string, requiredNames: string[] = []): Promise<void> {
   const lowerText = text.toLowerCase();
+  const reqLookup = new Set(requiredNames.map((n) => n.trim().toLowerCase()).filter(Boolean));
   const skills = await prisma.skill.findMany({
     select: { id: true, name: true, aliases: true },
   }) as StoredSkill[];
 
-  const matchedSkillIds = new Set<string>();
+  const matchedSkills = new Map<string, boolean>(); // skillId → isRequired
   for (const skill of skills) {
     const terms = [skill.name, ...skill.aliases].map((term) => term.trim().toLowerCase()).filter(Boolean);
     if (terms.some((term) => lowerText.includes(term))) {
-      matchedSkillIds.add(skill.id);
+      const isReq = reqLookup.has(skill.name.toLowerCase());
+      matchedSkills.set(skill.id, isReq);
     }
   }
 
   // Promote tags that look like technologies but aren't known skills yet.
   const existingNames = new Set(skills.map((skill) => skill.name.toLowerCase()));
   for (const term of extractCandidateTerms(text).slice(0, 30)) {
-    if (matchedSkillIds.size >= 50) break;
+    if (matchedSkills.size >= 50) break;
     if (existingNames.has(term)) continue;
     let skillRow = await prisma.skill.findFirst({
       where: { name: { equals: term, mode: 'insensitive' } },
@@ -95,18 +97,20 @@ async function linkJobSkills(jobId: string, text: string): Promise<void> {
       });
       existingNames.add(term.toLowerCase());
     }
-    matchedSkillIds.add(skillRow.id);
+    if (!matchedSkills.has(skillRow.id)) {
+      matchedSkills.set(skillRow.id, false);
+    }
   }
 
-  if (matchedSkillIds.size === 0) return;
+  if (matchedSkills.size === 0) return;
 
   // Upsert the job→skill links in one cheap transaction per job.
   await prisma.$transaction(
-    [...matchedSkillIds].map((skillId) =>
+    [...matchedSkills.entries()].map(([skillId, isRequired]) =>
       prisma.jobSkill.upsert({
         where: { jobId_skillId: { jobId, skillId } },
-        update: {},
-        create: { jobId, skillId, isRequired: true },
+        update: { isRequired },
+        create: { jobId, skillId, isRequired },
       }),
     ),
   );

@@ -16,6 +16,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
 import { SavedJobsPage } from './pages/SavedJobsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { SkillsPage } from './pages/SkillsPage';
 import { MatchPage } from './components/matching/MatchPage';
 
 function JobMatchRoute() {
@@ -105,6 +106,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/skills"
+                element={
+                  <ProtectedRoute>
+                    <SkillsPage />
                   </ProtectedRoute>
                 }
               />
