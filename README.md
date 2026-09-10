@@ -5,13 +5,14 @@ and professional profile, compares it against job descriptions, and produces a
 **transparent Match Score (0–100)** with a per-factor breakdown, an AI-written
 explanation, CV optimization suggestions, and skills-gap analysis.
 
-> **Status: Phase 4 — Job Feeds** (monorepo, API server, web client,
+> **Status: Phase 5 — Matching Engine** (monorepo, API server, web client,
 > database schema + migrations, full JWT auth, profile + preferences, CV
-> intelligence with AI skill extraction, plus pluggable `IJobProvider` adapters
-> for Remotive / Arbeitnow / RemoteOK / manual-paste, content-based
-> deduplication, skill auto-extraction, and a node-cron scheduler that syncs
-> every 6 hours). The matching engine and dashboard arrive in the following
-> phases — see [Roadmap](#roadmap).
+> intelligence with AI skill extraction, pluggable `IJobProvider` adapters for
+> Remotive / Arbeitnow / RemoteOK / manual-paste with content-based
+> deduplication + 6-hour scheduler, and a **deterministic weighted matching
+> engine** with per-factor breakdowns and AI-written explanations). The
+> dashboard and application-tracking UI arrive in the following phases — see
+> [Roadmap](#roadmap).
 
 ---
 
@@ -20,11 +21,12 @@ explanation, CV optimization suggestions, and skills-gap analysis.
 | Layer     | Technology                                          |
 | --------- | --------------------------------------------------- |
 | Frontend  | React 19 + Vite + TypeScript + React Router + Tailwind CSS 4 |
-| Backend   | Node.js + Express 5 + TypeScript                    |
+| Backend   | Node.js + Express 5 + TypeScript (Vitest for unit tests) |
 | Database  | PostgreSQL (Neon in development) + Prisma ORM       |
-| Auth      | JWT (access + refresh) — Phase 1                    |
-| AI        | Pluggable `IAIService` provider adapters — Phase 3  |
+| Auth      | JWT (access + refresh) with rotation + revocation — Phase 1 |
+| AI        | Pluggable `IAIService` provider adapters (Gemini / heuristic fallback) — Phase 3 |
 | Job feeds | Pluggable `IJobProvider` adapters (Remotive, Arbeitnow, RemoteOK, manual/LinkedIn-paste) — Phase 4 |
+| Matching  | Deterministic weighted `IMatchingService` — Phase 5 |
 
 External services sit behind interfaces (`IAIService`, `IJobProvider`,
 `ICVParser`, `IMatchingService`) so any provider can be swapped without
@@ -38,18 +40,22 @@ JobRadar/
 ├─ client/                 # React SPA (Vite + TS)
 │  └─ src/
 │     ├─ api/              # HTTP client + typed endpoints
-│     ├─ components/       # Reusable UI (layout/, ui/, jobs/, ...)
-│     ├─ pages/            # Route pages
-│     └─ ...
+│     ├─ components/       # Reusable UI (layout/, ui/, jobs/, cv/, matching/)
+│     ├─ context/          # Auth session (silent refresh) + theme
+│     ├─ pages/            # Route pages (jobs, job detail, match, profile, CV…)
+│     └─ types/            # Shared DTO shapes
 ├─ server/                 # Express API (TS, CommonJS build)
 │  ├─ prisma/
 │  │  ├─ schema.prisma     # Full ERD (17 models, 13 enums)
 │  │  └─ migrations/       # SQL migrations
 │  └─ src/
 │     ├─ config/           # env (zod-validated), prisma client, logger
-│     ├─ middleware/       # error handler, 404, (auth/validate from Phase 1)
-│     ├─ routes/           # /api router (health now, features per phase)
-│     └─ services/         # IAIService / IJobProvider / IMatchingService adapters
+│     ├─ middleware/       # error handler, 404, auth (JWT), upload, validate
+│     ├─ modules/          # auth / profile / cv / jobs / matching (routes+controllers+schemas)
+│     ├─ routes/           # /api router (all feature routers registered)
+│     ├─ scheduler/        # node-cron job-feed sync (every 6 h)
+│     └─ services/         # ai/ (gemini + heuristic fallback), cv/ (parsers),
+│                          # jobs/ (remotive/arbeitnow/remoteok), matching/ (weighted engine + tests)
 └─ package.json            # npm workspaces + shared scripts
 ```
 
@@ -96,6 +102,7 @@ it live.
 | `npm run build`       | Type-check + build both workspaces         |
 | `npm run typecheck`   | `tsc --noEmit` for both workspaces         |
 | `npm run lint`        | ESLint for both workspaces                 |
+| `npm test`            | Matching-engine unit tests (Vitest)        |
 | `npm run format`      | Prettier write                             |
 | `npm run db:deploy`   | Apply pending migrations (`migrate deploy`) |
 | `npm run db:migrate`  | Create/apply a dev migration (`migrate dev`) |
@@ -108,7 +115,10 @@ it live.
 - Environment variables are validated with Zod at boot; the API fails fast on
   invalid configuration.
 - Helmet, CORS allow-list, JSON body limits and a global rate limiter are
-  enabled from day one; per-endpoint auth rules land with Phase 1.
+  enabled from day one; all feature endpoints require a valid JWT (access
+  token in memory, rotating refresh token in an httpOnly cookie).
+- Every query is scoped by the authenticated `userId` from the token — never
+  from request input — so users cannot reach each other's CVs, jobs or matches.
 - Errors are logged server-side; clients only ever receive generic messages.
 
 ## Roadmap
@@ -120,8 +130,8 @@ it live.
 | 2 ✅  | Profile + preferences (user profile editor, job-preference editor, transparent completion score) |
 | 3 ✅  | CV upload + parsing (PDF/DOCX, magic-byte verified) + AI extraction → user skills & profile auto-fill |
 | 4 ✅  | Job source adapters (Remotive, Arbeitnow, RemoteOK, manual/LinkedIn-paste) + ingestion + deduplication + skill auto-extraction + 6-hour scheduler |
-| 5     | Transparent weighted matching engine + AI explanations                |
-| 6–7   | Dashboard, jobs browsing/filters, job details ("Why you match")       |
+| 5 ✅  | Transparent weighted matching engine (7 documented factors) + AI explanations + unit tests |
+| 6–7 ✅ | Jobs browsing (search/filters/pagination) + job detail pages + match breakdown ("Why you match") + dashboard |
 | 8     | Saved jobs + application tracking (Kanban, notes, interviews)         |
 | 9     | CV Optimizer + skills-gap + learning goals                            |
 | 10    | Notifications, polish, tests, documentation                           |
