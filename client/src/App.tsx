@@ -1,16 +1,25 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, useParams, useNavigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Header } from './components/layout/Header';
 import { AuthProvider } from './context/AuthContext';
 import { AccountPage } from './pages/AccountPage';
 import { CVPage } from './pages/CVPage';
 import { HomePage } from './pages/HomePage';
+import { JobDetailPage } from './pages/JobDetailPage';
 import { JobsPage } from './pages/JobsPage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { MatchPage } from './components/matching/MatchPage';
+
+function JobMatchRoute() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  if (!id) return null;
+  return <MatchPage jobId={id} onBack={() => navigate(`/jobs/${id}`)} />;
+}
 
 export default function App() {
   return (
@@ -44,6 +53,22 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <JobsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/jobs/:id"
+                element={
+                  <ProtectedRoute>
+                    <JobDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/jobs/:id/match"
+                element={
+                  <ProtectedRoute>
+                    <JobMatchRoute />
                   </ProtectedRoute>
                 }
               />

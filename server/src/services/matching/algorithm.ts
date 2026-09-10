@@ -419,6 +419,10 @@ export function scoreJob(
 
   return {
     jobId: job.id,
+    title: job.title,
+    company: null,
+    workMode: job.workMode,
+    location: job.location,
     score,
     factors,
     matchedRequiredSkills,

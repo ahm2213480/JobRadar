@@ -4,7 +4,9 @@ import { JobCard } from '../components/jobs/JobCard';
 import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/TextField';
 import { SelectField } from '../components/ui/SelectField';
+import { EmptyState } from '../components/ui/EmptyState';
 import type { JobListItem, JobSourceInfo, SyncSummary } from '../types/job';
+import { AddJobModal } from '../components/jobs/AddJobModal';
 
 const WORK_MODE_OPTIONS = [
   { value: '', label: 'Any work mode' },
@@ -20,6 +22,7 @@ export function JobsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
   const [q, setQ] = useState('');
   const [workMode, setWorkMode] = useState('');
@@ -28,6 +31,8 @@ export function JobsPage() {
   const [sources, setSources] = useState<JobSourceInfo[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<SyncSummary | null>(null);
+
+  const [modalOpen, setModalOpen] = useState(false);
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
@@ -39,6 +44,7 @@ export function JobsPage() {
         location: location || undefined,
         source: source || undefined,
         limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
       });
       setJobs(result.jobs);
       setTotal(result.total);
@@ -47,11 +53,15 @@ export function JobsPage() {
     } finally {
       setLoading(false);
     }
-  }, [q, workMode, location, source]);
+  }, [q, workMode, location, source, page]);
 
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [q, workMode, location, source]);
 
   useEffect(() => {
     (async () => {
@@ -77,6 +87,17 @@ export function JobsPage() {
     }
   }
 
+  function handleJobCreated() {
+    // Close, jump back to page 1 (the newest manual job sorts there),
+    // and refresh the list.
+    setModalOpen(false);
+    if (page !== 0) {
+      setPage(0);
+    } else {
+      void fetchJobs();
+    }
+  }
+
   const sourceOptions = [
     { value: '', label: 'All sources' },
     ...sources.map((s) => ({ value: s.slug, label: s.name })),
@@ -91,9 +112,12 @@ export function JobsPage() {
             {total.toLocaleString()} open positions from {sources.length} sources.
           </p>
         </div>
-        <Button onClick={handleSync} disabled={syncing}>
-          {syncing ? 'Syncing…' : 'Sync now'}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" onClick={handleSync} disabled={syncing}>
+            {syncing ? 'Syncing…' : 'Sync now'}
+          </Button>
+          <Button onClick={() => setModalOpen(true)}>Add job</Button>
+        </div>
       </div>
 
       {lastSync && (
@@ -149,21 +173,74 @@ export function JobsPage() {
           Loading jobs…
         </p>
       ) : jobs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 py-16 text-center dark:border-slate-700">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            No jobs match your filters yet.
-          </p>
-          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-            Try “Sync now” to pull the latest openings, or widen your filters.
-          </p>
-        </div>
+        <EmptyState
+          icon="📭"
+          title="No jobs found"
+          message="Try adjusting your search or filters, or click 'Sync now' to pull the latest openings."
+        />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {jobs.map((job) => (
-            <JobCard key={job.id} job={job} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {jobs.map((job) => (
+              <JobCard key={job.id} job={job} />
+            ))}
+          </div>
+          <PaginationBar
+            page={page}
+            total={total}
+            pageSize={PAGE_SIZE}
+            loading={loading}
+            onPage={setPage}
+          />
+        </>
+      )}
+      {modalOpen && (
+        <AddJobModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onCreated={handleJobCreated}
+        />
       )}
     </section>
+  );
+}
+
+function PaginationBar({
+  page,
+  total,
+  pageSize,
+  loading,
+  onPage,
+}: {
+  page: number;
+  total: number;
+  pageSize: number;
+  loading: boolean;
+  onPage: (p: number) => void;
+}) {
+  const totalPages = Math.ceil(total / pageSize);
+  if (totalPages <= 1) return null;
+  const hasPrev = page > 0;
+  const hasNext = (page + 1) * pageSize < total;
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <Button
+        variant="ghost"
+        onClick={() => onPage(page - 1)}
+        disabled={!hasPrev || loading}
+      >
+        Previous
+      </Button>
+      <span className="px-3 text-sm text-slate-600 dark:text-slate-400">
+        Page {page + 1} of {totalPages}
+      </span>
+      <Button
+        variant="ghost"
+        onClick={() => onPage(page + 1)}
+        disabled={!hasNext || loading}
+      >
+        Next
+      </Button>
+    </div>
   );
 }

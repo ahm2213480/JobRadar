@@ -140,7 +140,7 @@ export const matchingService: IMatchingService = {
 
     const job = await prisma.job.findUnique({
       where: { id: jobId },
-      include: { jobSkills: { include: { skill: true } } },
+      include: { company: true, jobSkills: { include: { skill: true } } },
     });
     if (!job) throw new Error('Job not found.');
 
@@ -173,6 +173,10 @@ export const matchingService: IMatchingService = {
 
     return {
       ...base,
+      title: job.title,
+      company: job.company?.name ?? null,
+      workMode: job.workMode as MatchResult['workMode'],
+      location: job.location,
       aiExplanation,
       aiUsed: Boolean(aiExplanation),
       computedAt: new Date().toISOString(),
@@ -184,7 +188,7 @@ export const matchingService: IMatchingService = {
     if (!user) return [];
 
     const jobs = await prisma.job.findMany({
-      include: { jobSkills: { include: { skill: true } } },
+      include: { company: true, jobSkills: { include: { skill: true } } },
       take: 500,
     });
     const jobInputs = jobs.map(mapJobToInput);
@@ -213,11 +217,16 @@ export const matchingService: IMatchingService = {
       }),
     );
 
-    return scored.map((base) => ({
-      ...base,
-      aiExplanation: null,
-      aiUsed: false,
-      computedAt: new Date().toISOString(),
-    }));
+    const jobById = new Map(jobs.map((j) => [j.id, j]));
+    return scored.map((base) => {
+      const originalJob = jobById.get(base.jobId)!;
+      return {
+        ...base,
+        company: originalJob.company?.name ?? null,
+        aiExplanation: null,
+        aiUsed: false,
+        computedAt: new Date().toISOString(),
+      };
+    });
   },
 };

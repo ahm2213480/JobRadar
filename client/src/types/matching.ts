@@ -18,6 +18,16 @@ export interface MatchFactorResult {
 }
 
 export interface MatchResult {
+  /** Id of the job that was scored */
+  jobId: string;
+  /** Job title for display purposes */
+  title: string;
+  /** Company name for display purposes */
+  company: string | null;
+  /** Work mode for display purposes */
+  workMode: 'REMOTE' | 'HYBRID' | 'ONSITE' | 'UNKNOWN';
+  /** Location for display purposes */
+  location: string | null;
   score: number;
   factors: MatchFactorResult[];
   matchedRequiredSkills: string[];

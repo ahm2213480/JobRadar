@@ -33,6 +33,14 @@ export interface MatchFactorResult {
 export interface MatchResult {
   /** id of the job that was scored */
   jobId: string;
+  /** Job title for display purposes */
+  title: string;
+  /** Company name for display purposes */
+  company: string | null;
+  /** Work mode for display purposes */
+  workMode: 'REMOTE' | 'HYBRID' | 'ONSITE' | 'UNKNOWN';
+  /** Location for display purposes */
+  location: string | null;
   /** Final deterministic score 0–100 (rounded). */
   score: number;
   /** Per-factor breakdown. */

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { JobListItem } from '../../types/job';
 
 const WORK_MODE_LABELS: Record<string, string> = {
@@ -38,7 +39,14 @@ export function JobCard({ job }: { job: JobListItem }) {
     <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-700">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold">{job.title}</h3>
+          <h3 className="truncate text-base font-semibold">
+            <Link
+              to={`/jobs/${job.id}`}
+              className="hover:underline"
+            >
+              {job.title}
+            </Link>
+          </h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             {job.company?.name ?? 'Unknown company'}
           </p>
@@ -75,14 +83,29 @@ export function JobCard({ job }: { job: JobListItem }) {
         </div>
       )}
 
-      <a
-        href={job.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-3 inline-block text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
-      >
-        View & apply →
-      </a>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <Link
+          to={`/jobs/${job.id}`}
+          className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+        >
+          View details →
+        </Link>
+        {job.url ? (
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Opens the original posting in a new tab"
+            className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+          >
+            View original posting ↗
+          </a>
+        ) : (
+          <span className="text-xs text-slate-400 dark:text-slate-500">
+            Added manually — no external link provided.
+          </span>
+        )}
+      </div>
     </article>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import * as api from '../api/client';
-import type { MatchResult } from '../types/matching';
+import * as api from '../../api/client';
+import type { MatchResult } from '../../types/matching';
 
 const RECOMMENDATION_STYLES: Record<string, { color: string; label: string }> = {
   HIGHLY_RECOMMENDED: {
@@ -72,6 +72,8 @@ export function MatchPage({ jobId, onBack }: { jobId: string; onBack: () => void
   }
 
   if (!result) return null;
+
+  const recStyle = RECOMMENDATION_STYLES[result.recommendation];
 
   return (
     <section className="space-y-6">
@@ -201,4 +203,3 @@ export function MatchPage({ jobId, onBack }: { jobId: string; onBack: () => void
     </section>
   );
 }
-  const recStyle = RECOMMENDATION_STYLES[result.recommendation];
