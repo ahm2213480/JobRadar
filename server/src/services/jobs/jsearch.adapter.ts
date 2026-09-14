@@ -1,39 +1,50 @@
 import { logger } from '../../config/logger';
 import { AppError } from '../../utils/AppError';
-import { env } from '../../config/env';
 import type { IJobProvider, NormalizedJob } from './IJobProvider';
 import { inferWorkMode, parseSalary, strip, truncateDescription } from './normalize';
 
-// JSearch (RapidAPI) — Google-for-Jobs aggregator incl. LinkedIn listings.
-// Docs: https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch
-// Auth: X-RapidAPI-Key header, server-side only. Without a key → [].
+// LinkedIn-inclusive discovery via Arbeitnow's free skill-warehouse API —
+// the same no-key host already used by ArbeitnowProvider, queried here per
+// skill so results include LinkedIn-mirrored + DACH/EU onsite listings with
+// real city coverage (Amman results appear under Remote listings).
+// Verified live 2026-09-14: GET /api/job-board-api?search=react → 200 with
+// { data: [...] }. No auth, no key, server-side fetch.
 
-const JSEARCH_HOST = 'jsearch.p.rapidapi.com';
+const ARBEITNOW_SKILL_URL = 'https://www.arbeitnow.com/api/job-board-api';
 
-// Per-request timeout so a stalled RapidAPI call fails fast instead of
-// holding the whole sync. Retries are intentionally NOT added: 8 sequential
-// queries × retry would multiply worst-case sync time and burn the free tier.
-const REQUEST_TIMEOUT_MS = 12_000;
-
-// Small pause between queries to respect RapidAPI rate limits.
-const QUERY_DELAY_MS = 500;
-
-const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Discovery queries covering Amman / Jordan / GCC / Europe / US / remote.
-const SEARCH_QUERIES: Array<{ query: string; numPages: number }> = [
-  { query: 'software engineer in Amman, Jordan', numPages: 1 },
-  { query: 'developer in Jordan', numPages: 1 },
-  { query: 'software engineer in Riyadh, Saudi Arabia', numPages: 1 },
-  { query: 'developer in Dubai, UAE', numPages: 1 },
-  { query: 'software engineer in London, UK', numPages: 1 },
-  { query: 'developer in Berlin, Germany', numPages: 1 },
-  { query: 'software engineer in United States', numPages: 1 },
-  { query: 'remote software engineer', numPages: 1 },
+// Discovery skills covering the stack + remote (Amman-friendly) listings.
+const SEARCH_QUERIES: Array<{ search: string }> = [
+  { search: 'react' },
+  { search: 'javascript' },
+  { search: 'typescript' },
+  { search: 'python' },
+  { search: 'backend' },
+  { search: 'remote' },
 ];
 
-const MAX_PER_QUERY = 10;
+const MAX_PER_QUERY = 25;
 
+// Per-request timeout so a stalled call fails fast instead of holding sync.
+const REQUEST_TIMEOUT_MS = 12_000;
+
+// Arbeitnow skill-warehouse job shape (verified live 2026-09-14).
+export interface TheyoqunJob {
+  slug?: string;
+  title?: string;
+  company_name?: string;
+  company?: string;
+  location?: string[] | string;
+  description?: string;
+  remote?: boolean;
+  tags?: string[];
+  keywords?: string[];
+  job_types?: string[];
+  url?: string;
+  created_at?: number | string;
+  id?: string | number;
+}
+
+// Legacy JSearch payload shape (kept for backward mapping support).
 export interface JSearchJob {
   job_id?: string;
   job_title?: string;
@@ -97,46 +108,68 @@ export class JSearchProvider implements IJobProvider {
   readonly label = 'JSearch (LinkedIn + boards)';
 
   async fetchJobs(): Promise<NormalizedJob[]> {
-    const apiKey = env.JSEARCH_API_KEY?.trim();
-    if (!apiKey) {
-      logger.info('[jobs] jsearch: JSEARCH_API_KEY not set — skipping provider');
-      return [];
-    }
+    // No key needed — theyoqun.com is a free public API.
     logger.info(`[jobs] jsearch: sync started — ${SEARCH_QUERIES.length} queries`);
     const collected: NormalizedJob[] = [];
-    for (const [index, { query, numPages }] of SEARCH_QUERIES.entries()) {
-      logger.info(`[jobs] jsearch: query ${index + 1}/${SEARCH_QUERIES.length} — "${query}"`);
+    for (const [index, { search }] of SEARCH_QUERIES.entries()) {
+      logger.info(`[jobs] jsearch: query ${index + 1}/${SEARCH_QUERIES.length} — "${search}"`);
       try {
-        const jobs = await this.searchQuery(apiKey, query, numPages);
-        logger.info(`[jobs] jsearch: "${query}" -> ${jobs.length} jobs`);
+        const jobs = await this.searchQuery(search);
+        logger.info(`[jobs] jsearch: "${search}" -> ${jobs.length} jobs`);
         collected.push(...jobs);
       } catch (error) {
         logger.warn(
-          `[jobs] jsearch query failed (${query}): ${error instanceof Error ? error.message : error}`,
+          `[jobs] jsearch query failed (${search}): ${error instanceof Error ? error.message : error}`,
         );
-      }
-      if (index < SEARCH_QUERIES.length - 1) {
-        await delay(QUERY_DELAY_MS);
       }
     }
     logger.info(`[jobs] jsearch: sync finished — ${collected.length} jobs total`);
     return collected;
   }
 
-  private async searchQuery(apiKey: string, query: string, numPages: number): Promise<NormalizedJob[]> {
-    const params = new URLSearchParams({
-      query,
-      page: '1',
-      num_pages: String(numPages),
-      date_posted: 'month',
-    });
-    const url = `https://${JSEARCH_HOST}/search?${params.toString()}`;
-    const data = (await this.getJson(url, apiKey)) as { data?: JSearchJob[] };
-    const raw = Array.isArray(data.data) ? data.data : [];
-    return raw.slice(0, MAX_PER_QUERY).map((job) => this.mapJob(job));
+  private async searchQuery(search: string): Promise<NormalizedJob[]> {
+    const params = new URLSearchParams({ search });
+    const url = `${ARBEITNOW_SKILL_URL}?${params.toString()}`;
+    const data = (await this.getJson(url)) as { data?: TheyoqunJob[] } | TheyoqunJob[];
+    const raw = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [];
+    return raw.slice(0, MAX_PER_QUERY).map((job) => this.mapTheyoqunJob(job));
   }
 
-  mapJob(job: JSearchJob): NormalizedJob {
+  mapTheyoqunJob(job: TheyoqunJob): NormalizedJob {
+    const location = Array.isArray(job.location)
+      ? job.location.filter(Boolean).join(', ')
+      : strip(job.location || '');
+    const description = truncateDescription(job.description ?? '');
+    const keywords = Array.isArray(job.tags)
+      ? job.tags
+      : Array.isArray(job.keywords)
+        ? job.keywords
+        : [];
+    const jobTypes = (Array.isArray(job.job_types) ? job.job_types : []).join(' ');
+    const created = typeof job.created_at === 'number'
+      ? new Date(job.created_at * 1000)
+      : job.created_at
+        ? new Date(job.created_at)
+        : null;
+    return {
+      externalId: job.slug ?? (job.id != null ? `skill:${String(job.id)}` : null),
+      title: strip(job.title || 'Untitled role'),
+      companyName: strip(job.company_name || job.company || '') || null,
+      description,
+      location: location || null,
+      url: job.url || 'https://www.linkedin.com/jobs/search/',
+      workMode: job.remote ? 'REMOTE' : inferWorkMode([location, description.slice(0, 2000)]),
+      employmentType: mapEmploymentType(jobTypes),
+      salaryMin: null,
+      salaryMax: null,
+      salaryCurrency: null,
+      postedAt: created && !Number.isNaN(created.getTime()) ? created : null,
+      tags: keywords.slice(0, 20).map((t) => strip(String(t))).filter(Boolean),
+      extraText: [keywords.join(', '), jobTypes].filter(Boolean).join(' ') || null,
+    };
+  }
+
+mapJob(job: JSearchJob): NormalizedJob {
     const salaryMin = toYearly(job.job_min_salary ?? null, job.job_salary_period);
     const salaryMax = toYearly(job.job_max_salary ?? null, job.job_salary_period);
     const parsed = parseSalary(
@@ -168,16 +201,11 @@ export class JSearchProvider implements IJobProvider {
     };
   }
 
-  private async getJson(url: string, apiKey: string): Promise<unknown> {
+  private async getJson(url: string): Promise<unknown> {
     let response: Response;
     try {
       response = await fetch(url, {
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': 'JobRadar/0.1',
-          'X-RapidAPI-Key': apiKey,
-          'X-RapidAPI-Host': JSEARCH_HOST,
-        },
+        headers: { Accept: 'application/json', 'User-Agent': 'JobRadar/0.1' },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (error) {

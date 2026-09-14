@@ -3,7 +3,29 @@ import { JSearchProvider, buildLocation, mapEmploymentType, toYearly } from './j
 import { AdzunaProvider } from './adzuna.adapter';
 
 describe('JSearch adapter mapping', () => {
-  it('maps a LinkedIn-style payload onto NormalizedJob', () => {
+  it('maps a skill-warehouse payload onto NormalizedJob', () => {
+    const provider = new JSearchProvider();
+    const job = provider.mapTheyoqunJob({
+      slug: 'react-dev-amman-123',
+      title: 'React Developer',
+      company_name: 'Acme',
+      location: 'Amman',
+      description: 'Build things with React in Amman.',
+      remote: false,
+      tags: ['React', 'TypeScript'],
+      job_types: ['full_time'],
+      url: 'https://www.arbeitnow.com/jobs/abc',
+      created_at: 1789381864,
+    });
+    expect(job.externalId).toBe('react-dev-amman-123');
+    expect(job.title).toBe('React Developer');
+    expect(job.location).toBe('Amman');
+    expect(job.employmentType).toBe('FULL_TIME');
+    expect(job.tags).toContain('React');
+    expect(job.postedAt).toBeInstanceOf(Date);
+  });
+
+  it('maps a legacy JSearch payload onto NormalizedJob', () => {
     const provider = new JSearchProvider();
     const job = provider.mapJob({
       job_id: 'abc123',
@@ -30,11 +52,7 @@ describe('JSearch adapter mapping', () => {
     expect(job.tags).toContain('React');
   });
 
-  it('handles a missing/unreachable key without hanging the suite', async () => {
-    // NOTE: this environment has a real JSEARCH_API_KEY in server/.env, so
-    // the provider attempts 8 live queries (12s timeout each + 0.5s pacing).
-    // The per-query isolation + 12s cap is exactly what this test exercises:
-    // every query fails fast (404 from RapidAPI here) and the loop finishes.
+  it('fetches live skill-warehouse jobs without hanging', async () => {
     const jobs = await new JSearchProvider().fetchJobs();
     expect(Array.isArray(jobs)).toBe(true);
   }, 120_000);
