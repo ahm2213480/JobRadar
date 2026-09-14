@@ -86,6 +86,9 @@ export async function listJobs(query: ListJobsQuery): Promise<{
   if (query.source) {
     where.source = { slug: query.source };
   }
+  if (query.postedSince) {
+    where.postedAt = { gte: query.postedSince };
+  }
 
   const [rows, total] = await prisma.$transaction([
     prisma.job.findMany({

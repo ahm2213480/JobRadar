@@ -6,6 +6,7 @@ export const listJobsQuerySchema = z.object({
   workMode: z.nativeEnum(WorkMode).optional(),
   location: z.string().trim().max(100).optional(),
   source: z.string().trim().max(50).optional(),
+  postedSince: z.coerce.date().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(30),
   offset: z.coerce.number().int().min(0).max(10_000).default(0),
 }).default({});

@@ -31,6 +31,15 @@ const envSchema = z.object({
   AI_PROVIDER: z.enum(['gemini', 'mock']).default('gemini'),
   AI_API_KEY: z.string().trim().optional(),
   AI_MODEL: z.string().trim().default('gemini-3.6-flash'),
+  // --- Job providers (Phase: broad discovery) ---
+  // Optional: without keys the providers return [] so existing sources sync.
+  // JSearch (RapidAPI): aggregates LinkedIn + boards. Free tier available.
+  // Get a key at https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch
+  JSEARCH_API_KEY: z.string().trim().optional(),
+  // Adzuna: official job-search API (gb/us/de + more, no Jordan endpoint).
+  // Register at https://developer.adzuna.com/ for app_id + app_key.
+  ADZUNA_APP_ID: z.string().trim().optional(),
+  ADZUNA_APP_KEY: z.string().trim().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

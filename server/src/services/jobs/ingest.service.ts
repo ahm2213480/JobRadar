@@ -6,6 +6,8 @@ import type { IJobProvider, NormalizedJob } from './IJobProvider';
 import { guessSkillCategory } from './IJobProvider';
 import { clean, jobFingerprint } from './normalize';
 import { ArbeitnowProvider } from './arbeitnow.adapter';
+import { AdzunaProvider } from './adzuna.adapter';
+import { JSearchProvider } from './jsearch.adapter';
 import { RemoteOkProvider } from './remoteok.adapter';
 import { RemotiveProvider } from './remotive.adapter';
 
@@ -30,6 +32,10 @@ function ensureSourceSlug(slug: string): { name: string; baseUrl: string | null 
       return { name: 'RemoteOK', baseUrl: 'https://remoteok.com' };
     case 'arbeitnow':
       return { name: 'Arbeitnow', baseUrl: 'https://arbeitnow.com' };
+    case 'jsearch':
+      return { name: 'JSearch (LinkedIn + boards)', baseUrl: 'https://www.linkedin.com/jobs/' };
+    case 'adzuna':
+      return { name: 'Adzuna', baseUrl: 'https://www.adzuna.com' };
     case 'manual':
       return { name: 'Manual / LinkedIn paste', baseUrl: null };
     default:
@@ -39,7 +45,7 @@ function ensureSourceSlug(slug: string): { name: string; baseUrl: string | null 
 
 /** Idempotently creates the known sources so seed data exists on first boot. */
 export async function ensureSources(): Promise<void> {
-  for (const slug of ['remotive', 'remoteok', 'arbeitnow', 'manual']) {
+  for (const slug of ['remotive', 'remoteok', 'arbeitnow', 'jsearch', 'adzuna', 'manual']) {
     const { name, baseUrl } = ensureSourceSlug(slug);
     await prisma.jobSource.upsert({
       where: { slug },
@@ -305,6 +311,8 @@ export async function syncActiveSources(): Promise<SyncSummary> {
     new RemotiveProvider(),
     new RemoteOkProvider(),
     new ArbeitnowProvider(),
+    new JSearchProvider(),
+    new AdzunaProvider(),
   ];
 
   const results: IngestResult[] = [];
