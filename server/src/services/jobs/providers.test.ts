@@ -1,6 +1,40 @@
 import { describe, expect, it } from 'vitest';
 import { JSearchProvider, buildLocation, mapEmploymentType, toYearly } from './jsearch.adapter';
 import { AdzunaProvider } from './adzuna.adapter';
+import {
+  companyFromUrl,
+  isJobListingUrl,
+  toJobResult,
+} from './websearch.adapter';
+
+describe('WebSearch adapter mapping', () => {
+  it('keeps only job-listing origins and preserves the original URL', () => {
+    expect(isJobListingUrl('https://www.linkedin.com/jobs/view/123')).toBe(true);
+    expect(isJobListingUrl('https://careers.acme.com/jobs/45')).toBe(true);
+    expect(isJobListingUrl('https://google.com/search?q=jobs')).toBe(false);
+  });
+
+  it('maps a Google SERP organic result onto NormalizedJob', () => {
+    const job = toJobResult(
+      {
+        title: 'React Developer — Amman',
+        link: 'https://www.linkedin.com/jobs/view/123456',
+        snippet: 'Join Acme in Amman, Jordan. React, TypeScript, Node.js.',
+      },
+      'jo',
+    );
+    expect(job.externalId).toContain('linkedin.com/jobs/view/123456');
+    expect(job.title).toContain('React Developer');
+    expect(job.url).toContain('linkedin.com');
+    expect(job.description).toContain('React');
+  });
+
+  it('heuristic company name from URL', () => {
+    expect(companyFromUrl('https://careers.acme.com/jobs')).toBe('Acme');
+    expect(companyFromUrl('https://www.linkedin.com/jobs/view/1')).toBe('Linkedin');
+    expect(companyFromUrl('not a url')).toBeNull();
+  });
+});
 
 describe('JSearch adapter mapping', () => {
   it('maps a skill-warehouse payload onto NormalizedJob', () => {

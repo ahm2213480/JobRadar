@@ -40,6 +40,10 @@ const envSchema = z.object({
   // Register at https://developer.adzuna.com/ for app_id + app_key.
   ADZUNA_APP_ID: z.string().trim().optional(),
   ADZUNA_APP_KEY: z.string().trim().optional(),
+  // WebSearch (Serper.dev Google SERP): "look it up on the web" discovery —
+  // returns real job-listing URLs (LinkedIn, careers pages, boards) for
+  // free-tier queries. 2500 free queries/month, no card. https://serper.dev
+  SERPER_API_KEY: z.string().trim().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
