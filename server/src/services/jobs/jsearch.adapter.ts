@@ -10,6 +10,16 @@ import { inferWorkMode, parseSalary, strip, truncateDescription } from './normal
 
 const JSEARCH_HOST = 'jsearch.p.rapidapi.com';
 
+// Per-request timeout so a stalled RapidAPI call fails fast instead of
+// holding the whole sync. Retries are intentionally NOT added: 8 sequential
+// queries × retry would multiply worst-case sync time and burn the free tier.
+const REQUEST_TIMEOUT_MS = 12_000;
+
+// Small pause between queries to respect RapidAPI rate limits.
+const QUERY_DELAY_MS = 500;
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Discovery queries covering Amman / Jordan / GCC / Europe / US / remote.
 const SEARCH_QUERIES: Array<{ query: string; numPages: number }> = [
   { query: 'software engineer in Amman, Jordan', numPages: 1 },
@@ -92,8 +102,10 @@ export class JSearchProvider implements IJobProvider {
       logger.info('[jobs] jsearch: JSEARCH_API_KEY not set — skipping provider');
       return [];
     }
+    logger.info(`[jobs] jsearch: sync started — ${SEARCH_QUERIES.length} queries`);
     const collected: NormalizedJob[] = [];
-    for (const { query, numPages } of SEARCH_QUERIES) {
+    for (const [index, { query, numPages }] of SEARCH_QUERIES.entries()) {
+      logger.info(`[jobs] jsearch: query ${index + 1}/${SEARCH_QUERIES.length} — "${query}"`);
       try {
         const jobs = await this.searchQuery(apiKey, query, numPages);
         logger.info(`[jobs] jsearch: "${query}" -> ${jobs.length} jobs`);
@@ -103,7 +115,11 @@ export class JSearchProvider implements IJobProvider {
           `[jobs] jsearch query failed (${query}): ${error instanceof Error ? error.message : error}`,
         );
       }
+      if (index < SEARCH_QUERIES.length - 1) {
+        await delay(QUERY_DELAY_MS);
+      }
     }
+    logger.info(`[jobs] jsearch: sync finished — ${collected.length} jobs total`);
     return collected;
   }
 
@@ -162,9 +178,12 @@ export class JSearchProvider implements IJobProvider {
           'X-RapidAPI-Key': apiKey,
           'X-RapidAPI-Host': JSEARCH_HOST,
         },
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (error) {
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        throw new AppError(502, `JSearch request timed out after ${REQUEST_TIMEOUT_MS}ms`);
+      }
       logger.error('JSearch fetch failed', error);
       throw new AppError(502, 'JSearch API is unreachable or timed out');
     }

@@ -51,8 +51,15 @@ export async function sync(_req: Request, res: Response): Promise<void> {
     throw new AppError(429, 'Sync is already running — please wait a few minutes before trying again.');
   }
   lastManualSyncAt = now;
-  const summary = await syncActiveSources();
-  res.status(200).json(summary);
+  try {
+    const summary = await syncActiveSources();
+    res.status(200).json(summary);
+  } catch (error) {
+    // The sync loop is self-guarding, but this guarantees the HTTP request
+    // can never hang forever even if something unexpected escapes it.
+    lastManualSyncAt = null;
+    throw error;
+  }
 }
 
 export async function sources(_req: Request, res: Response): Promise<void> {

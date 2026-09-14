@@ -14,6 +14,23 @@ import { RemotiveProvider } from './remotive.adapter';
 /** Time between two manual "Sync now" triggers, to protect external APIs. */
 export const MIN_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
+/** Upper bound for the whole sync loop so one hanging provider cannot stall the endpoint forever. */
+export const SYNC_OVERALL_TIMEOUT_MS = 120_000;
+
+/** Upper bound for a single provider (fetch + ingest) before it is aborted. */
+export const PROVIDER_TIMEOUT_MS = 45_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    timer.unref?.();
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
 export function normalizeCompanyName(name: string): string {
   // Remove common suffix noise ("GmbH", "Inc.", "LLC", "Ltd") so the same
   // company from multiple sources maps to a single normalized row.
@@ -304,8 +321,18 @@ export interface SyncSummary {
   results: IngestResult[];
 }
 
-/** Runs every active provider adapter and collects the results. */
+/**
+ * Runs every active provider adapter and collects the results.
+ * Each provider (fetch + ingest) is bounded by PROVIDER_TIMEOUT_MS and the
+ * whole loop by SYNC_OVERALL_TIMEOUT_MS, so a hanging provider can never
+ * stall POST /api/jobs/sync forever — it is recorded as a zero-result entry.
+ */
 export async function syncActiveSources(): Promise<SyncSummary> {
+  const overallStart = Date.now();
+  const deadline = overallStart + SYNC_OVERALL_TIMEOUT_MS;
+  logger.info(
+    `[jobs] sync started — ${SYNC_OVERALL_TIMEOUT_MS / 1000}s overall budget, ${PROVIDER_TIMEOUT_MS / 1000}s per provider`,
+  );
   await ensureSources();
   const providers: IJobProvider[] = [
     new RemotiveProvider(),
@@ -317,19 +344,52 @@ export async function syncActiveSources(): Promise<SyncSummary> {
 
   const results: IngestResult[] = [];
   for (const provider of providers) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      logger.warn(`[jobs] sync budget exhausted — skipping ${provider.sourceSlug}`);
+      results.push({
+        source: provider.sourceSlug,
+        fetched: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        durationMs: 0,
+      });
+      continue;
+    }
+    const budget = Math.min(PROVIDER_TIMEOUT_MS, remaining);
+    const started = Date.now();
+    logger.info(`[jobs] syncing provider: ${provider.sourceSlug} (budget ${Math.round(budget / 1000)}s)`);
     try {
-      const jobs = await provider.fetchJobs();
+      const jobs = await withTimeout(
+        provider.fetchJobs(),
+        budget,
+        `[jobs] ${provider.sourceSlug} fetchJobs`,
+      );
+      logger.info(`[jobs] ${provider.sourceSlug}: fetched ${jobs.length} jobs — ingesting`);
       const result = await ingestProvider(provider, jobs);
       results.push(result);
       logger.info(
-        `[jobs] ${provider.sourceSlug}: ${result.created} created, ${result.updated} updated, ${result.skipped} skipped in ${result.durationMs}ms`,
+        `[jobs] ${provider.sourceSlug}: done — ${result.created} created, ${result.updated} updated, ${result.skipped} skipped in ${result.durationMs}ms`,
       );
     } catch (error) {
       logger.warn(
-        `[jobs] ${provider.sourceSlug} sync failed: ${error instanceof Error ? error.message : error}`,
+        `[jobs] ${provider.sourceSlug} sync failed after ${Date.now() - started}ms: ${error instanceof Error ? error.message : error}`,
       );
+      results.push({
+        source: provider.sourceSlug,
+        fetched: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        durationMs: Date.now() - started,
+      });
     }
   }
+  const totalCreated = results.reduce((sum, r) => sum + r.created, 0);
+  logger.info(
+    `[jobs] sync complete — ${totalCreated} new jobs across ${results.length} sources in ${Date.now() - overallStart}ms`,
+  );
   return { ranAt: new Date().toISOString(), results };
 }
 
