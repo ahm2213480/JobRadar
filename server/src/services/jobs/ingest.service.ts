@@ -32,6 +32,21 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
+/** Retry once on transient Prisma connection errors (Neon sleeps when idle). */
+const RETRYABLE_DB_CODES = new Set(['P1001', 'P1002', 'P2024']);
+async function withDbRetry<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code && RETRYABLE_DB_CODES.has(code)) {
+      logger.warn(`[jobs] DB connection error (${code}) — retrying once`);
+      return work();
+    }
+    throw error;
+  }
+}
+
 export function normalizeCompanyName(name: string): string {
   // Remove common suffix noise ("GmbH", "Inc.", "LLC", "Ltd") so the same
   // company from multiple sources maps to a single normalized row.
@@ -336,7 +351,14 @@ export async function syncActiveSources(): Promise<SyncSummary> {
   logger.info(
     `[jobs] sync started — ${SYNC_OVERALL_TIMEOUT_MS / 1000}s overall budget, ${PROVIDER_TIMEOUT_MS / 1000}s per provider`,
   );
-  await ensureSources();
+  try {
+    // Bootstrap source rows — guarded so a cold DB cannot abort the whole sync.
+    await withTimeout(ensureSources(), 15_000, '[jobs] ensureSources');
+  } catch (error) {
+    logger.warn(
+      `[jobs] ensureSources failed (${error instanceof Error ? error.message : error}) — continuing anyway`,
+    );
+  }
   const providers: IJobProvider[] = [
     new RemotiveProvider(),
     new RemoteOkProvider(),
@@ -365,13 +387,17 @@ export async function syncActiveSources(): Promise<SyncSummary> {
     const started = Date.now();
     logger.info(`[jobs] syncing provider: ${provider.sourceSlug} (budget ${Math.round(budget / 1000)}s)`);
     try {
-      const jobs = await withTimeout(
-        provider.fetchJobs(),
+      // Fetch AND persist together inside one budget: a cold/sleeping database
+      // must never let the provider (and the whole sync) hang forever.
+      const result = await withTimeout(
+        (async () => {
+          const jobs = await provider.fetchJobs();
+          logger.info(`[jobs] ${provider.sourceSlug}: fetched ${jobs.length} jobs — ingesting`);
+          return withDbRetry(() => ingestProvider(provider, jobs));
+        })(),
         budget,
-        `[jobs] ${provider.sourceSlug} fetchJobs`,
+        `[jobs] ${provider.sourceSlug} fetch+ingest`,
       );
-      logger.info(`[jobs] ${provider.sourceSlug}: fetched ${jobs.length} jobs — ingesting`);
-      const result = await ingestProvider(provider, jobs);
       results.push(result);
       logger.info(
         `[jobs] ${provider.sourceSlug}: done — ${result.created} created, ${result.updated} updated, ${result.skipped} skipped in ${result.durationMs}ms`,
