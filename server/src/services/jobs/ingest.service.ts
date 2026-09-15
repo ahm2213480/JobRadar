@@ -15,6 +15,12 @@ import { WebSearchProvider } from './websearch.adapter';
 /** Time between two manual "Sync now" triggers, to protect external APIs. */
 export const MIN_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
+/** Prisma rejects Invalid Date objects outright — normalize at the boundary so
+ * one malformed provider field can never abort a whole provider sync. */
+function safeDate(value: Date | null | undefined): Date | null {
+  return value && !Number.isNaN(value.getTime()) ? value : null;
+}
+
 /** Upper bound for the whole sync loop so one hanging provider cannot stall the endpoint forever. */
 export const SYNC_OVERALL_TIMEOUT_MS = 120_000;
 
@@ -97,64 +103,94 @@ interface StoredSkill {
 }
 
 /**
- * Loads all known skills once per ingestion and links a job to every skill
- * whose canonical name or one of its aliases appears in the job text.
- * Unknown technical tags are promoted to new Skill rows so the vocabulary
- * grows with the data instead of remaining static.
+ * Loads the skill vocabulary once per ingestion run and reuses it for every
+ * job — the old code ran a full-table `skill.findMany` per job (N+1 pattern).
+ * Newly promoted skills are added to the in-memory cache immediately so a
+ * later job in the same run sees them without another DB round-trip.
  */
-async function linkJobSkills(jobId: string, text: string, requiredNames: string[] = []): Promise<void> {
-  const lowerText = text.toLowerCase();
-  const reqLookup = new Set(requiredNames.map((n) => n.trim().toLowerCase()).filter(Boolean));
-  const skills = await prisma.skill.findMany({
-    select: { id: true, name: true, aliases: true },
-  }) as StoredSkill[];
+class SkillLinker {
+  private skills: StoredSkill[] = [];
+  /** lowercase canonical name or alias → skill row */
+  private byTerm = new Map<string, StoredSkill>();
+  private loaded = false;
 
-  const matchedSkills = new Map<string, boolean>(); // skillId → isRequired
-  for (const skill of skills) {
-    const terms = [skill.name, ...skill.aliases].map((term) => term.trim().toLowerCase()).filter(Boolean);
-    if (terms.some((term) => lowerText.includes(term))) {
-      const isReq = reqLookup.has(skill.name.toLowerCase());
-      matchedSkills.set(skill.id, isReq);
+  async ensureLoaded(): Promise<void> {
+    if (this.loaded) return;
+    this.skills = (await prisma.skill.findMany({
+      select: { id: true, name: true, aliases: true },
+    })) as StoredSkill[];
+    for (const skill of this.skills) {
+      for (const term of [skill.name, ...skill.aliases]) {
+        this.byTerm.set(term.trim().toLowerCase(), skill);
+      }
     }
+    this.loaded = true;
   }
 
-  // Promote tags that look like technologies but aren't known skills yet.
-  const existingNames = new Set(skills.map((skill) => skill.name.toLowerCase()));
-  for (const term of extractCandidateTerms(text).slice(0, 30)) {
-    if (matchedSkills.size >= 50) break;
-    if (existingNames.has(term)) continue;
-    let skillRow = await prisma.skill.findFirst({
+  /**
+   * Links a job to every skill whose canonical name or one of its aliases
+   * appears in the job text. Unknown technical tags are promoted to new Skill
+   * rows so the vocabulary grows with the data instead of remaining static.
+   */
+  async link(jobId: string, text: string, requiredNames: string[] = []): Promise<void> {
+    await this.ensureLoaded();
+
+    const lowerText = text.toLowerCase();
+    const reqLookup = new Set(requiredNames.map((n) => n.trim().toLowerCase()).filter(Boolean));
+
+    const matchedSkills = new Map<string, boolean>(); // skillId → isRequired
+    for (const skill of this.skills) {
+      const terms = [skill.name, ...skill.aliases].map((term) => term.trim().toLowerCase()).filter(Boolean);
+      if (terms.some((term) => lowerText.includes(term))) {
+        matchedSkills.set(skill.id, reqLookup.has(skill.name.toLowerCase()));
+      }
+    }
+
+    // Promote tags that look like technologies but aren't known skills yet.
+    for (const term of extractCandidateTerms(text).slice(0, 30)) {
+      if (matchedSkills.size >= 50) break;
+      const known = this.byTerm.get(term);
+      if (known) {
+        if (!matchedSkills.has(known.id)) matchedSkills.set(known.id, false);
+        continue;
+      }
+      const created = await this.createSkill(term);
+      if (!matchedSkills.has(created.id)) matchedSkills.set(created.id, false);
+    }
+
+    if (matchedSkills.size === 0) return;
+
+    // Upsert the job→skill links in one cheap transaction per job.
+    await prisma.$transaction(
+      [...matchedSkills.entries()].map(([skillId, isRequired]) =>
+        prisma.jobSkill.upsert({
+          where: { jobId_skillId: { jobId, skillId } },
+          update: { isRequired },
+          create: { jobId, skillId, isRequired },
+        }),
+      ),
+    );
+  }
+
+  /** Creates a new skill row (or adopts one created by a concurrent run). */
+  private async createSkill(term: string): Promise<StoredSkill> {
+    const existing = await prisma.skill.findFirst({
       where: { name: { equals: term, mode: 'insensitive' } },
-      select: { id: true, aliases: true },
+      select: { id: true, name: true, aliases: true },
     });
-    if (!skillRow) {
-      skillRow = await prisma.skill.create({
+    const skill = (existing ??
+      (await prisma.skill.create({
         data: {
           name: term,
           category: guessSkillCategory(term),
           aliases: [term.toLowerCase()],
         },
-        select: { id: true, aliases: true },
-      });
-      existingNames.add(term.toLowerCase());
-    }
-    if (!matchedSkills.has(skillRow.id)) {
-      matchedSkills.set(skillRow.id, false);
-    }
+        select: { id: true, name: true, aliases: true },
+      }))) as StoredSkill;
+    this.skills.push(skill);
+    this.byTerm.set(term, skill);
+    return skill;
   }
-
-  if (matchedSkills.size === 0) return;
-
-  // Upsert the job→skill links in one cheap transaction per job.
-  await prisma.$transaction(
-    [...matchedSkills.entries()].map(([skillId, isRequired]) =>
-      prisma.jobSkill.upsert({
-        where: { jobId_skillId: { jobId, skillId } },
-        update: { isRequired },
-        create: { jobId, skillId, isRequired },
-      }),
-    ),
-  );
 }
 
 /** Extracts lowercased, alphanumeric-only tokens that look like skills. */
@@ -217,8 +253,17 @@ export async function ingestProvider(
     source = await prisma.jobSource.findUniqueOrThrow({ where: { slug: provider.sourceSlug } });
   }
 
+  // One skill vocabulary load + one company cache per ingestion run — without
+  // these the loop below issues several DB queries per job (N+1 pattern).
+  const skillLinker = new SkillLinker();
+  const companyCache = new Map<string, { id: string } | null>();
+
   for (const job of jobs) {
-    const company = await findOrCreateCompany(job.companyName);
+    const cacheKey = job.companyName ? normalizeCompanyName(job.companyName) : '';
+    if (!companyCache.has(cacheKey)) {
+      companyCache.set(cacheKey, await findOrCreateCompany(job.companyName));
+    }
+    const company = companyCache.get(cacheKey)!;
     const fingerprint = createHash('sha256').update(jobFingerprint(job)).digest('hex');
 
     const existing = job.externalId
@@ -232,10 +277,10 @@ export async function ingestProvider(
     if (existing) {
       await prisma.job.update({
         where: { id: existing.id },
-        data: { postedAt: job.postedAt ?? existing.postedAt },
+        data: { postedAt: safeDate(job.postedAt) ?? existing.postedAt },
       });
       updated++;
-      await linkJobSkills(existing.id, jobText);
+      await skillLinker.link(existing.id, jobText);
       continue;
     }
 
@@ -263,12 +308,12 @@ export async function ingestProvider(
         salaryMax: job.salaryMax,
         salaryCurrency: job.salaryCurrency,
         url: job.url.slice(0, 1000),
-        postedAt: job.postedAt,
+        postedAt: safeDate(job.postedAt),
         fingerprint,
       };
       const stored = await prisma.job.create({ data });
       created++;
-      await linkJobSkills(stored.id, jobText);
+      await skillLinker.link(stored.id, jobText);
     } catch (error) {
       if ((error as { code?: string }).code === 'P2002') {
         skipped++;
@@ -330,7 +375,8 @@ export async function ingestManualJob(input: {
     },
     select: { id: true },
   });
-  await linkJobSkills(job.id, [input.title, input.description].join('\n'));
+  const skillLinker = new SkillLinker();
+  await skillLinker.link(job.id, [input.title, input.description].join('\n'));
   return job;
 }
 
@@ -360,12 +406,15 @@ export async function syncActiveSources(): Promise<SyncSummary> {
     );
   }
   const providers: IJobProvider[] = [
+    // Web search runs first: it is the fastest provider (~2s) and the user's
+    // primary "look it up on the web" discovery mode. Being last, it used to
+    // starve whenever slower providers burned the overall time budget.
+    new WebSearchProvider(),
     new RemotiveProvider(),
     new RemoteOkProvider(),
     new ArbeitnowProvider(),
     new JSearchProvider(),
     new AdzunaProvider(),
-    new WebSearchProvider(),
   ];
 
   const results: IngestResult[] = [];

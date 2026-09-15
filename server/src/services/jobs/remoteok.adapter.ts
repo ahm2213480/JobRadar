@@ -34,6 +34,19 @@ async function getJson(url: string): Promise<unknown> {
   return response.json();
 }
 
+/**
+ * RemoteOK's `date` field is documented as a unix timestamp but some entries
+ * carry strings or garbage — multiplying those yields NaN and `new Date(NaN)`
+ * is an Invalid Date, which Prisma rejects outright (killing the whole sync).
+ */
+function toPostedAt(value: RemoteOkJob['date']): Date | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  const parsed = new Date(value * 1000);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export class RemoteOkProvider implements IJobProvider {
   readonly sourceSlug = 'remoteok';
   readonly label = 'RemoteOK';
@@ -67,7 +80,7 @@ export class RemoteOkProvider implements IJobProvider {
         salaryMin: salary.salaryMin,
         salaryMax: salary.salaryMax,
         salaryCurrency: salary.salaryCurrency,
-        postedAt: job.date ? new Date(job.date * 1000) : null,
+        postedAt: toPostedAt(job.date),
         tags: (job.tags ?? []).slice(0, 20).map((tag) => strip(String(tag))).filter(Boolean),
         extraText: job.tags?.join(', ') ?? null,
       };

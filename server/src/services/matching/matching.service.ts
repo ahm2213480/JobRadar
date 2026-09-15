@@ -193,29 +193,40 @@ export const matchingService: IMatchingService = {
     });
     const jobInputs = jobs.map(mapJobToInput);
     const scored = scoreAllJobs(jobInputs, user).slice(0, limit);
+    if (scored.length === 0) return [];
 
-    await prisma.$transaction(
-      scored.map((result) => {
-        const job = jobInputs.find((j) => j.id === result.jobId)!;
-        return prisma.jobMatch.upsert({
-          where: { userId_jobId: { userId, jobId: job.id } },
-          update: {
-            matchScore: result.score,
-            breakdown: serializeBreakdown(result),
-            recommendation: toRecommendation(result.score),
-            computedAt: new Date(),
-          },
-          create: {
+    const topJobIds = scored.map((result) => result.jobId);
+
+    // Preserve AI explanations that were already generated for these jobs —
+    // they are written by the per-job flow and must survive a re-score.
+    const existingMatches = await prisma.jobMatch.findMany({
+      where: { userId, jobId: { in: topJobIds } },
+      select: { jobId: true, aiExplanation: true, aiModel: true },
+    });
+    const explanationByJobId = new Map(existingMatches.map((m) => [m.jobId, m]));
+
+    // Persist with two bulk statements instead of one upsert per job. The old
+    // code built a single transaction containing up to `limit` individual
+    // upserts, which could blow past Prisma's interactive-transaction timeout
+    // as the job dataset grows.
+    await prisma.$transaction([
+      prisma.jobMatch.deleteMany({ where: { userId, jobId: { in: topJobIds } } }),
+      prisma.jobMatch.createMany({
+        data: scored.map((result) => {
+          const saved = explanationByJobId.get(result.jobId);
+          return {
             id: randomUUID(),
             userId,
-            jobId: job.id,
+            jobId: result.jobId,
             matchScore: result.score,
             breakdown: serializeBreakdown(result),
             recommendation: toRecommendation(result.score),
-          },
-        });
+            aiExplanation: saved?.aiExplanation ?? null,
+            aiModel: saved?.aiModel ?? null,
+          };
+        }),
       }),
-    );
+    ]);
 
     const jobById = new Map(jobs.map((j) => [j.id, j]));
     return scored.map((base) => {

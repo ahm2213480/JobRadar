@@ -7,6 +7,12 @@ import {
   toJobResult,
 } from './websearch.adapter';
 
+// Live-network tests run locally by default (current dev behavior). In CI they
+// are skipped — real HTTP calls make builds slow and flaky — unless explicitly
+// enabled with RUN_LIVE_TESTS=1.
+const RUN_LIVE_TESTS =
+  process.env.CI === 'true' ? process.env.RUN_LIVE_TESTS === '1' : true;
+
 describe('WebSearch adapter mapping', () => {
   it('keeps only job-listing origins and preserves the original URL', () => {
     expect(isJobListingUrl('https://www.linkedin.com/jobs/view/123')).toBe(true);
@@ -86,7 +92,7 @@ describe('JSearch adapter mapping', () => {
     expect(job.tags).toContain('React');
   });
 
-  it('fetches live skill-warehouse jobs without hanging', async () => {
+  it.skipIf(!RUN_LIVE_TESTS)('fetches live skill-warehouse jobs without hanging', async () => {
     const jobs = await new JSearchProvider().fetchJobs();
     expect(Array.isArray(jobs)).toBe(true);
   }, 120_000);
