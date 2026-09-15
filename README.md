@@ -243,4 +243,5 @@ Two free-tier behaviours to plan around:
 
 Possible next steps: full-text search (Postgres `tsvector`), client code
 splitting, cloud storage for CV uploads, email notifications.
+Live Demo : https://jobradar-l7oj.onrender.com
 
