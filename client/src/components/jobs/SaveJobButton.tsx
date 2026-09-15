@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as api from '../../api/client';
 import type { JobListItem } from '../../types/job';
 import { Button } from '../ui/Button';
+import { Icon } from '../ui/Icon';
 
 interface SaveJobButtonProps {
   job: JobListItem;
@@ -64,7 +65,7 @@ export function SaveJobButton({ job, initialSaved, size = 'sm', onChanged }: Sav
     }
   }
 
-  const label = busy && saved === null ? '…' : saved ? '★ Saved' : '☆ Save';
+  const label = busy && saved === null ? '…' : saved ? 'Saved' : 'Save';
 
   return (
     <span
@@ -73,13 +74,20 @@ export function SaveJobButton({ job, initialSaved, size = 'sm', onChanged }: Sav
       onFocus={() => void ensureStatus()}
     >
       <Button
-        variant={saved ? 'primary' : 'ghost'}
+        variant={saved ? 'primary' : 'secondary'}
         onClick={() => void (saved === null ? ensureStatus().then(() => void toggle()) : toggle())}
         disabled={busy}
         aria-pressed={saved ?? undefined}
         aria-label={saved ? `Unsave ${job.title}` : `Save ${job.title}`}
         className={size === 'sm' ? 'px-3 py-1 text-xs' : undefined}
       >
+        {saved !== null && (
+          <Icon
+            name="star"
+            className={size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'}
+            {...(saved ? { fill: 'currentColor' } : {})}
+          />
+        )}
         {label}
       </Button>
       {error && (

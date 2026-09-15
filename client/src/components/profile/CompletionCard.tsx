@@ -28,7 +28,7 @@ export function CompletionCard({ completion }: { completion: CompletionResult })
 
       {percent === 100 ? (
         <p className="mt-3 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-          Your profile is complete 🎉 You will get the best match results.
+          Your profile is complete — you will get the best match results.
         </p>
       ) : (
         <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">

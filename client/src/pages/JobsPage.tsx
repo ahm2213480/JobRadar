@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as api from '../api/client';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { JobCard } from '../components/jobs/JobCard';
 import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/TextField';
@@ -24,9 +25,12 @@ export function JobsPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
 
+  // Free-text inputs are debounced so typing never fires one request per key.
   const [q, setQ] = useState('');
+  const debouncedQ = useDebouncedValue(q, 350);
   const [workMode, setWorkMode] = useState('');
   const [location, setLocation] = useState('');
+  const debouncedLocation = useDebouncedValue(location, 350);
   const [source, setSource] = useState('');
   const [sources, setSources] = useState<JobSourceInfo[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -37,38 +41,55 @@ export function JobsPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
 
-  const fetchJobs = useCallback(async () => {
+  const fetchJobs = useCallback(async (queryOverride?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const [result, saved] = await Promise.all([
-        api.listJobs({
-          q: q || undefined,
-          workMode: workMode || undefined,
-          location: location || undefined,
-          source: source || undefined,
-          limit: PAGE_SIZE,
-          offset: page * PAGE_SIZE,
-        }),
-        api.listSavedJobs().catch(() => ({ savedJobs: [], total: 0 })),
-      ]);
+      const result = await api.listJobs({
+        q: (queryOverride ?? debouncedQ) || undefined,
+        workMode: workMode || undefined,
+        location: debouncedLocation || undefined,
+        source: source || undefined,
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+      });
       setJobs(result.jobs);
       setTotal(result.total);
-      setSavedIds(new Set(saved.savedJobs.map((entry) => entry.id)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load jobs');
     } finally {
       setLoading(false);
     }
-  }, [q, workMode, location, source, page]);
+  }, [debouncedQ, workMode, debouncedLocation, source, page]);
 
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
 
+  // Saved-job IDs are fetched separately from the jobs list: they only depend
+  // on the visible page and save/unsave actions, not on search or filters.
+  // The old coupled Promise.all refetched the whole saved list on every
+  // keystroke and filter change.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const saved = await api.listSavedJobs();
+        if (!cancelled) {
+          setSavedIds(new Set(saved.savedJobs.map((entry) => entry.id)));
+        }
+      } catch {
+        // Non-critical — cards fall back to the hover-check in SaveJobButton.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [page]);
+
   useEffect(() => {
     setPage(0);
-  }, [q, workMode, location, source]);
+  }, [debouncedQ, workMode, debouncedLocation, source]);
 
   useEffect(() => {
     (async () => {
@@ -150,7 +171,7 @@ export function JobsPage() {
           placeholder="e.g. React developer"
           value={q}
           onChange={(event) => setQ(event.target.value)}
-          onKeyDown={(event) => event.key === 'Enter' && fetchJobs()}
+          onKeyDown={(event) => event.key === 'Enter' && void fetchJobs(q)}
         />
         <SelectField
           id="workMode"
@@ -181,7 +202,7 @@ export function JobsPage() {
         </p>
       ) : jobs.length === 0 ? (
         <EmptyState
-          icon="📭"
+          icon="inbox"
           title="No jobs found"
           message="Try adjusting your search or filters, or click 'Sync now' to pull the latest openings."
         />

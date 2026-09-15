@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { JobListItem } from '../../types/job';
+import { Icon } from '../ui/Icon';
 import { SaveJobButton } from './SaveJobButton';
 
 const WORK_MODE_LABELS: Record<string, string> = {
@@ -49,7 +50,7 @@ export function JobCard({
     : null;
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-700">
+    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-700">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="truncate text-base font-semibold">
@@ -71,11 +72,26 @@ export function JobCard({
         </span>
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-        {job.location && <span>📍 {job.location}</span>}
-        {salary && <span>💰 {salary}</span>}
-        {posted && <span>🗓 {posted}</span>}
-        <span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+        {job.location && (
+          <span className="inline-flex items-center gap-1">
+            <Icon name="map-pin" className="h-3.5 w-3.5" />
+            {job.location}
+          </span>
+        )}
+        {salary && (
+          <span className="inline-flex items-center gap-1">
+            <Icon name="banknote" className="h-3.5 w-3.5" />
+            {salary}
+          </span>
+        )}
+        {posted && (
+          <span className="inline-flex items-center gap-1">
+            <Icon name="calendar" className="h-3.5 w-3.5" />
+            {posted}
+          </span>
+        )}
+        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium dark:bg-slate-800">
           {job.source.name}
         </span>
       </div>
@@ -96,12 +112,13 @@ export function JobCard({
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-3 dark:border-slate-800">
         <Link
           to={`/jobs/${job.id}`}
-          className="text-sm font-medium text-slate-700 hover:underline dark:text-slate-200"
+          className="inline-flex items-center gap-1 text-sm font-medium text-slate-700 transition-colors hover:text-blue-700 dark:text-slate-200 dark:hover:text-blue-400"
         >
-          View details →
+          View details
+          <Icon name="arrow-right" className="h-3.5 w-3.5" />
         </Link>
         <SaveJobButton
           job={job}
@@ -117,9 +134,10 @@ export function JobCard({
             target="_blank"
             rel="noopener noreferrer"
             title="Opens the original posting in a new tab"
-            className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+            className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
           >
-            View original posting ↗
+            Original posting
+            <Icon name="external-link" className="h-3.5 w-3.5" />
           </a>
         ) : (
           <span className="text-xs text-slate-400 dark:text-slate-500">

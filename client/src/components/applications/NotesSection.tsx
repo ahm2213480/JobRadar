@@ -99,7 +99,7 @@ export function NotesSection({ applicationId }: { applicationId: string }) {
           </p>
         ) : notes.length === 0 && !error ? (
           <EmptyState
-            icon="🗒"
+            icon="note"
             title="No notes yet"
             message="Add notes to remember details about this application."
           />

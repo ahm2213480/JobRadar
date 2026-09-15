@@ -5,6 +5,7 @@ import { InterviewsSection } from '../components/applications/InterviewsSection'
 import { NotesSection } from '../components/applications/NotesSection';
 import { STATUS_LABELS, STATUS_OPTIONS } from '../components/applications/statusMeta';
 import { Button } from '../components/ui/Button';
+import { Icon } from '../components/ui/Icon';
 import { SelectField } from '../components/ui/SelectField';
 import { TextField } from '../components/ui/TextField';
 import type {
@@ -81,9 +82,10 @@ export function ApplicationDetailPage() {
       <div className="space-y-4">
         <Link
           to="/applications"
-          className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
         >
-          ← Back to applications
+          <Icon name="arrow-left" className="h-4 w-4" />
+          Back to applications
         </Link>
         <div
           role="alert"
@@ -100,9 +102,10 @@ export function ApplicationDetailPage() {
       <div className="space-y-4">
         <Link
           to="/applications"
-          className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
         >
-          ← Back to applications
+          <Icon name="arrow-left" className="h-4 w-4" />
+          Back to applications
         </Link>
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-sm text-slate-500 dark:text-slate-400">Application not found.</p>
@@ -115,9 +118,10 @@ export function ApplicationDetailPage() {
     <div className="space-y-6">
       <Link
         to="/applications"
-        className="inline-block text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
       >
-        ← Back to applications
+        <Icon name="arrow-left" className="h-4 w-4" />
+        Back to applications
       </Link>
 
       {error && (
@@ -168,9 +172,10 @@ export function ApplicationDetailPage() {
           {application.jobId && (
             <Link
               to={`/jobs/${application.jobId}`}
-              className="text-blue-600 hover:underline dark:text-blue-400"
+              className="inline-flex items-center gap-1 text-blue-600 hover:underline dark:text-blue-400"
             >
-              View related job →
+              View related job
+              <Icon name="arrow-right" className="h-3.5 w-3.5" />
             </Link>
           )}
         </div>

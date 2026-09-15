@@ -3,6 +3,7 @@ import * as api from '../../api/client';
 import type { Interview, InterviewOutcome } from '../../types/application';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
+import { Icon } from '../ui/Icon';
 import { InterviewModal } from './InterviewModal';
 import {
   INTERVIEW_OUTCOME_COLORS,
@@ -122,7 +123,7 @@ export function InterviewsSection({ applicationId }: { applicationId: string }) 
           </p>
         ) : interviews.length === 0 && !error ? (
           <EmptyState
-            icon="🎤"
+            icon="mic"
             title="No interviews scheduled"
             message="Add interviews to keep track of every round of the process."
           >
@@ -146,8 +147,9 @@ export function InterviewsSection({ applicationId }: { applicationId: string }) 
                   >
                     {INTERVIEW_OUTCOME_LABELS[interview.outcome]}
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    🗓 {new Date(interview.scheduledAt).toLocaleString()}
+                  <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                    <Icon name="calendar" className="h-3 w-3" />
+                    {new Date(interview.scheduledAt).toLocaleString()}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -193,7 +195,10 @@ export function InterviewsSection({ applicationId }: { applicationId: string }) 
                       {interview.locationOrLink}
                     </a>
                   ) : (
-                    <>📍 {interview.locationOrLink}</>
+                    <span className="inline-flex items-center gap-1">
+                      <Icon name="map-pin" className="h-3 w-3" />
+                      {interview.locationOrLink}
+                    </span>
                   )}
                 </p>
               )}

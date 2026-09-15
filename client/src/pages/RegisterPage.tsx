@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/auth-context';
 import { Button } from '../components/ui/Button';
+import { Icon } from '../components/ui/Icon';
 import { TextField } from '../components/ui/TextField';
 
 export function RegisterPage() {
@@ -28,16 +29,21 @@ export function RegisterPage() {
   }
 
   return (
-    <section className="mx-auto max-w-md">
-      <h1 className="mb-1 text-2xl font-bold tracking-tight">Create your account</h1>
-      <p className="mb-6 text-sm text-slate-600 dark:text-slate-400">
-        Start matching with jobs that fit your skills.
-      </p>
+    <section className="mx-auto w-full max-w-sm py-6">
+      <div className="flex flex-col items-center text-center">
+        <span className="grid h-12 w-12 place-items-center rounded-xl bg-blue-600 text-white shadow-md">
+          <Icon name="radar" className="h-6 w-6" />
+        </span>
+        <h1 className="mt-4 text-2xl font-bold tracking-tight">Create your account</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Start matching with jobs that fit your skills.
+        </p>
+      </div>
 
       {error && (
         <div
           role="alert"
-          className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300"
+          className="mt-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300"
         >
           {error}
         </div>
@@ -45,7 +51,7 @@ export function RegisterPage() {
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+        className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
       >
         <TextField
           id="fullName"
@@ -86,7 +92,7 @@ export function RegisterPage() {
         </Button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-slate-600 dark:text-slate-400">
+      <p className="mt-5 text-center text-sm text-slate-600 dark:text-slate-400">
         Already have an account?{' '}
         <Link
           to="/login"

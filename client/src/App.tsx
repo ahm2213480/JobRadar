@@ -136,6 +136,12 @@ export default function App() {
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </main>
+          <footer className="border-t border-slate-200/80 py-6 dark:border-slate-800/80">
+            <p className="mx-auto max-w-5xl px-4 text-center text-xs text-slate-400 dark:text-slate-500">
+              JobRadar — transparent, deterministic match scores. Every factor is
+              explainable.
+            </p>
+          </footer>
         </div>
       </BrowserRouter>
     </AuthProvider>

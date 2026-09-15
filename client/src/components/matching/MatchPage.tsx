@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as api from '../../api/client';
 import type { MatchResult } from '../../types/matching';
+import { Icon } from '../ui/Icon';
 
 const RECOMMENDATION_STYLES: Record<string, { color: string; label: string }> = {
   HIGHLY_RECOMMENDED: {
@@ -79,9 +80,10 @@ export function MatchPage({ jobId, onBack }: { jobId: string; onBack: () => void
     <section className="space-y-6">
       <button
         onClick={onBack}
-        className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
       >
-        ← Back to jobs
+        <Icon name="arrow-left" className="h-4 w-4" />
+        Back to jobs
       </button>
 
       {/* Score hero */}
@@ -104,8 +106,9 @@ export function MatchPage({ jobId, onBack }: { jobId: string; onBack: () => void
           </p>
         )}
         {!result.aiExplanation && !result.aiUsed && (
-          <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
-            🤖 AI explanation unavailable — score is computed deterministically.
+          <p className="mt-4 inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+            <Icon name="alert" className="h-3.5 w-3.5" />
+            AI explanation unavailable — score is computed deterministically.
           </p>
         )}
       </div>
@@ -148,8 +151,9 @@ export function MatchPage({ jobId, onBack }: { jobId: string; onBack: () => void
       {/* Skills comparison */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-            ✅ Matched skills
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+            <Icon name="check-circle" className="h-4 w-4" />
+            Matched skills
           </h3>
           {result.matchedRequiredSkills.length === 0 &&
           result.matchedPreferredSkills.length === 0 ? (
@@ -179,8 +183,9 @@ export function MatchPage({ jobId, onBack }: { jobId: string; onBack: () => void
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400">
-            ❌ Missing skills
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400">
+            <Icon name="x" className="h-4 w-4" />
+            Missing skills
           </h3>
           {result.missingRequiredSkills.length === 0 ? (
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">

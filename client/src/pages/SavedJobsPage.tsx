@@ -4,6 +4,7 @@ import * as api from '../api/client';
 import { JobCard } from '../components/jobs/JobCard';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Icon } from '../components/ui/Icon';
 import type { SavedJobListItem } from '../types/saved';
 
 export function SavedJobsPage() {
@@ -55,7 +56,7 @@ export function SavedJobsPage() {
         </p>
       ) : jobs.length === 0 && !error ? (
         <EmptyState
-          icon="🔖"
+          icon="bookmark"
           title="No saved jobs yet"
           message="Save jobs from the jobs list or a job detail page to track them here."
         >
@@ -79,9 +80,10 @@ export function SavedJobsPage() {
               />
               <Link
                 to={`/applications?new=1&jobId=${job.id}`}
-                className="inline-block text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+                className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
               >
-                Track application →
+                Track application
+                <Icon name="arrow-right" className="h-3.5 w-3.5" />
               </Link>
             </div>
           ))}

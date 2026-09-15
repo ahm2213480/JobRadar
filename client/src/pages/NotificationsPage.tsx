@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import * as api from '../api/client';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Icon } from '../components/ui/Icon';
 import type { NotificationItem } from '../types/notification';
 
 function formatTime(iso: string): string {
@@ -121,7 +122,7 @@ export function NotificationsPage() {
 
       {notifications.length === 0 ? (
         <EmptyState
-          icon="🔔"
+          icon="bell"
           title="No notifications yet"
           message="When new jobs match your profile or your applications change status, you’ll see it here."
         />
@@ -134,8 +135,11 @@ export function NotificationsPage() {
                 notification.isRead ? 'opacity-70' : 'bg-blue-50/50 dark:bg-blue-950/20'
               }`}
             >
-              <span className="mt-0.5 text-lg">
-                {notification.type.includes('job') ? '💼' : '📣'}
+              <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                <Icon
+                  name={notification.type.includes('job') ? 'briefcase' : 'megaphone'}
+                  className="h-4 w-4"
+                />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{notification.title}</p>
@@ -162,8 +166,10 @@ export function NotificationsPage() {
                   variant="ghost"
                   onClick={() => handleDelete(notification.id)}
                   disabled={busyId === notification.id}
+                  aria-label="Delete notification"
+                  className="px-2.5"
                 >
-                  ✕
+                  <Icon name="x" className="h-4 w-4" />
                 </Button>
               </div>
             </li>

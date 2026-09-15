@@ -121,7 +121,7 @@ export function ApplicationsPage() {
         </p>
       ) : applications.length === 0 && !error ? (
         <EmptyState
-          icon="🗂"
+          icon="folder"
           title="No applications tracked yet"
           message="Add your first application from a job or manually — JobRadar keeps the status, notes and interviews organised for you."
         >

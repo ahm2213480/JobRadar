@@ -129,7 +129,7 @@ export function SkillsPage() {
         </h2>
         {gap && gap.gaps.length === 0 ? (
           <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-            No gap detected — your skills match your target jobs. 🎉
+            No gap detected — your skills match your target jobs.
           </p>
         ) : (
           <div className="mt-4 space-y-3">

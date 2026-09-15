@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as api from '../../api/client';
 import type { ApplicationListItem, ApplicationStatus } from '../../types/application';
 import { Button } from '../ui/Button';
+import { Icon } from '../ui/Icon';
 import { SelectField } from '../ui/SelectField';
 import { STATUS_OPTIONS } from './statusMeta';
 
@@ -69,8 +70,18 @@ export function ApplicationCard({
             {application.matchScoreSnapshot}% match
           </span>
         )}
-        {appliedAt && <span>🗓 {appliedAt}</span>}
-        {application.salaryText && <span>💰 {application.salaryText}</span>}
+        {appliedAt && (
+          <span className="inline-flex items-center gap-1">
+            <Icon name="calendar" className="h-3 w-3" />
+            {appliedAt}
+          </span>
+        )}
+        {application.salaryText && (
+          <span className="inline-flex items-center gap-1">
+            <Icon name="banknote" className="h-3 w-3" />
+            {application.salaryText}
+          </span>
+        )}
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -84,9 +95,10 @@ export function ApplicationCard({
         />
         <Link
           to={`/applications/${application.id}`}
-          className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+          className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
         >
-          View details →
+          View details
+          <Icon name="arrow-right" className="h-3 w-3" />
         </Link>
         <Button
           variant="ghost"
