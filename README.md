@@ -1,140 +1,202 @@
-# 📡 JobRadar
+# JobRadar
 
-AI-powered job discovery and matching platform. JobRadar analyzes a user's CV
-and professional profile, compares it against job descriptions, and produces a
-**transparent Match Score (0–100)** with a per-factor breakdown, an AI-written
-explanation, CV optimization suggestions, and skills-gap analysis.
+An AI-powered job discovery and matching platform. JobRadar analyzes a user's
+CV and professional profile, compares it against job descriptions from multiple
+sources, and produces a **transparent Match Score (0–100)** with a per-factor
+breakdown, an AI-written explanation, CV optimization suggestions, and a
+skills-gap analysis with learning goals.
 
-> **Status: Phase 10 — Complete** (monorepo, API server, web client, database
-> schema + migrations, full JWT auth, profile + preferences, CV intelligence
-> with AI skill extraction, pluggable `IJobProvider` adapters for Remotive /
-> Arbeitnow / RemoteOK / manual-paste with content-based deduplication + 6-hour
-> scheduler, deterministic weighted matching engine, jobs dashboard with
-> filters/pagination, job detail pages with match breakdown, saved jobs + full
-> application tracking with Kanban/notes/interviews, CV optimizer, skills-gap
-> analysis with learning goals, and a full notifications system). Production
-> ready — see [Roadmap](#roadmap).
+**Every score is deterministic and explainable** — the matching engine is a
+pure, unit-tested function with seven documented factors. AI is used only to
+*explain* results, never to compute them.
 
----
+| | |
+| --- | --- |
+| CI | [![CI](https://github.com/ahm2213480/JobRadar/actions/workflows/ci.yml/badge.svg)](https://github.com/ahm2213480/JobRadar/actions/workflows/ci.yml) |
+| Stack | ![Node](https://img.shields.io/badge/node-%E2%89%A520-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6) ![React](https://img.shields.io/badge/React-19-149eca) ![Prisma](https://img.shields.io/badge/Prisma-ORM-16a34a) ![Tailwind](https://img.shields.io/badge/Tailwind-4-06b6d4) |
+| Tests | ![Tests](https://img.shields.io/badge/tests-48%20passing-brightgreen) ![Auth](https://img.shields.io/badge/auth-integration%20tested-8b5cf6) |
+
+## Features
+
+- **Authentication** — JWT access tokens (in memory) + rotating refresh tokens
+  (httpOnly cookie), session revocation via token versioning, silent refresh.
+- **Profile and preferences** — profile editor, job preferences (titles,
+  locations, technologies, work mode, salary range) and a completion score.
+- **CV intelligence** — PDF/DOCX upload (magic-byte verified), AI skill
+  extraction, auto-fill of profile and skills, CV optimizer.
+- **Job discovery** — pluggable provider adapters: Remotive, RemoteOK,
+  Arbeitnow, Adzuna, JSearch (LinkedIn + boards) and a web-search provider
+  (Serper.dev / Google SERP) that returns real job-listing URLs. Content-based
+  deduplication, 6-hour scheduler and manual "Sync now".
+- **Transparent matching** — weighted 7-factor engine (required skills 35%,
+  preferred skills 10%, experience 15%, title 15%, education 5%,
+  location/work mode 10%, salary 10%) with a full per-factor breakdown.
+- **Application tracking** — Kanban board, notes, interview rounds with
+  outcomes, saved jobs.
+- **Skills gap** — demand-based gap analysis against target jobs plus learning
+  goals with due dates.
+- **Notifications** — new matches, high-score alerts, interview reminders.
 
 ## Tech stack
 
-| Layer      | Technology                                                                                           |
-| ---------- | ---------------------------------------------------------------------------------------------------- |
-| Frontend   | React 19 + Vite + TypeScript + React Router + Tailwind CSS 4                                         |
-| Backend    | Node.js + Express 5 + TypeScript (Vitest for unit tests)                                             |
-| Database   | PostgreSQL (Neon in development) + Prisma ORM                                                        |
-| Auth       | JWT (access + refresh) with rotation + revocation — Phase 1                                          |
-| AI         | Pluggable `IAIService` provider adapters (Gemini / heuristic fallback) — Phase 3                     |
-| Job feeds  | Pluggable `IJobProvider` adapters (Remotive, Arbeitnow, RemoteOK, manual/LinkedIn-paste) — Phase 4  |
-| Matching   | Deterministic weighted `IMatchingService` — Phase 5                                                  |
-| Skills     | Skills-gap analysis + learning goals — Phase 9                                                       |
-| Tracking   | Applications Kanban + notes + interviews — Phase 8                                                   |
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 19, Vite, TypeScript, React Router, Tailwind CSS 4 |
+| Backend | Node.js 20+, Express 5, TypeScript |
+| Database | PostgreSQL (Neon) + Prisma ORM (17 models, 13 enums) |
+| Auth | JWT (access + refresh rotation, revocation) |
+| AI | Pluggable `IAIService` (Gemini adapter + heuristic fallback) |
+| Jobs | Pluggable `IJobProvider` adapters (6 sources) |
+| Testing | Vitest (unit + end-to-end auth integration tests) |
+| CI | GitHub Actions (Postgres service, migrations, typecheck, lint, tests) |
 
 External services sit behind interfaces (`IAIService`, `IJobProvider`,
-`ICVParser`, `IMatchingService`) so any provider can be swapped without
-touching business logic. **No LinkedIn scraping** — job data comes only from
-official/authorized APIs or jobs the user adds themselves.
+`IMatchingService`) so any provider can be swapped without touching business
+logic. **No LinkedIn scraping** — job data comes only from official/authorized
+APIs or jobs the user adds manually.
 
-## Monorepo layout
+## Architecture
 
 ```
 JobRadar/
 ├─ client/                 # React SPA (Vite + TS)
 │  └─ src/
-│     ├─ api/              # HTTP client + typed endpoints
-│     ├─ components/       # Reusable UI (layout/, ui/, jobs/, cv/, matching/, applications/)
+│     ├─ api/              # Typed HTTP client with silent-refresh on 401
+│     ├─ components/       # UI kit (ui/, layout/, jobs/, cv/, matching/, applications/)
 │     ├─ context/          # Auth session (silent refresh) + theme
-│     ├─ pages/            # Route pages (dashboard, jobs, job detail, match, applications, profile, CV, skills…)
+│     ├─ hooks/            # Shared hooks (debounce, …)
+│     ├─ pages/            # Route pages (dashboard, jobs, match, applications, …)
 │     └─ types/            # Shared DTO shapes
-├─ server/                 # Express API (TS, CommonJS build)
-│  ├─ prisma/
-│  │  ├─ schema.prisma     # Full ERD (17 models, 13 enums)
-│  │  └─ migrations/       # SQL migrations
+├─ server/
+│  ├─ prisma/              # schema.prisma + SQL migrations
 │  └─ src/
-│     ├─ config/           # env (zod-validated), prisma client, logger
-│     ├─ middleware/       # error handler, 404, auth (JWT), upload, validate
-│     ├─ modules/          # auth / profile / cv / jobs / matching / saved / skills / applications
-│     ├─ routes/           # /api router (all feature routers registered)
+│     ├─ config/           # Zod-validated env, Prisma client, logger
+│     ├─ middleware/       # Auth (JWT), error handler, upload, validate
+│     ├─ modules/          # Feature modules: auth / profile / cv / jobs /
+│     │                    # matching / saved / skills / applications / notifications
 │     ├─ scheduler/        # node-cron job-feed sync (every 6 h)
-│     └─ services/         # ai/ (gemini + heuristic fallback), cv/ (parsers + optimizer),
-│                          # jobs/ (remotive/arbeitnow/remoteok), matching/ (weighted engine + tests)
+│     └─ services/         # ai/ · cv/ · jobs/ (6 adapters + ingest) · matching/
 └─ package.json            # npm workspaces + shared scripts
 ```
 
-## Prerequisites
-
-- Node.js ≥ 20 (developed on v22)
-- A PostgreSQL database — [Neon](https://neon.tech) free tier recommended
-  (no local installation needed)
-
 ## Getting started
 
+### Prerequisites
+
+- Node.js ≥ 20 (developed on v22)
+- A PostgreSQL database — the [Neon](https://neon.tech) free tier works great
+  (no local installation needed)
+- Optional API keys (Serper / JSearch / Adzuna / Gemini) — every provider
+  degrades gracefully without its key
+
+### Setup
+
 ```bash
-# 1. Install everything (workspaces: server + client)
+# 1. Install everything (npm workspaces: server + client)
 npm install
 
 # 2. Configure the API environment
 cp server/.env.example server/.env
-#    → edit server/.env and paste your Neon connection string:
-#      DATABASE_URL="postgresql://USER:PASSWORD@ep-xxx-pooler.REGION.aws.neon.tech/neondb?sslmode=require"
+#    → paste your Neon connection string into DATABASE_URL and generate the
+#      JWT secrets:
+#      node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
-# 3. Create the database schema (applies the initial migration)
+# 3. Create the database schema (applies all pending migrations)
 npm run db:deploy
 
-# 4. Generate the Prisma client (already committed output; re-run after schema changes)
+# 4. Generate the Prisma client
 npm run db:generate
 
 # 5. Run both apps in development
 npm run dev
-#    API  → http://localhost:4000/api/health
-#    Web  → http://localhost:5173 (proxies /api to the backend)
+#    API → http://localhost:4000/api/health
+#    Web → http://localhost:5173  (the dev server proxies /api to the backend)
 ```
 
-`GET /api/health` reports API liveness **and** real database connectivity
-(`connected` / `not_configured` / `unreachable`) — the web home page displays
-it live.
+### Environment variables (`server/.env`)
 
-## Useful scripts (run from the repo root)
+| Variable | Required | Description |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | PostgreSQL connection string (a Neon pooled URL works) |
+| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | yes | 32+ chars; generate with `crypto.randomBytes(48).toString('hex')` |
+| `JWT_ACCESS_EXPIRES_IN` / `JWT_REFRESH_EXPIRES_IN` | no | Defaults: `15m` / `7d` |
+| `PORT` / `CORS_ORIGIN` / `NODE_ENV` | no | Defaults: `4000` / `http://localhost:5173` / `development` |
+| `AI_PROVIDER` / `AI_API_KEY` / `AI_MODEL` | no | Gemini CV analysis; without a key a built-in heuristic extractor is used |
+| `SERPER_API_KEY` | no | Web-search provider (Google SERP via serper.dev, 2 500 free queries/month) |
+| `JSEARCH_API_KEY` | no | JSearch (RapidAPI) — LinkedIn + boards aggregation |
+| `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | no | Adzuna official job-search API |
 
-| Script               | Purpose                                      |
-| -------------------- | -------------------------------------------- |
-| `npm run dev`        | API + web dev servers together               |
-| `npm run dev:server` | API only (`tsx watch`, port 4000)            |
-| `npm run dev:client` | Web only (Vite, port 5173)                   |
-| `npm run build`      | Type-check + build both workspaces           |
-| `npm run typecheck`  | `tsc --noEmit` for both workspaces           |
-| `npm run lint`       | ESLint for both workspaces                   |
-| `npm test`           | Matching-engine unit tests (Vitest) — run from `server/` |
-| `npm run format`     | Prettier write                               |
-| `npm run db:deploy`  | Apply pending migrations (`migrate deploy`)  |
-| `npm run db:migrate` | Create/apply a dev migration (`migrate dev`) |
-| `npm run db:studio`  | Prisma Studio (browse data)                  |
+The client needs no configuration in development (`VITE_API_BASE_URL=/api`
+by default). Every key degrades gracefully — a missing key only disables that
+one provider or falls back to the heuristic extractor.
 
-## Security notes
+## Scripts (repo root)
 
-- Secrets live only in `server/.env` / `client/.env` (gitignored; only
-  `.env.example` files are committed). AI keys never reach the browser.
-- Environment variables are validated with Zod at boot; the API fails fast on
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | API + web dev servers together (concurrently) |
+| `npm run dev:server` / `dev:client` | Run one side only |
+| `npm run build` | Type-check + production build for both workspaces |
+| `npm run typecheck` / `npm run lint` | `tsc --noEmit` / ESLint for both workspaces |
+| `npm test` | Vitest suite (run inside `server/`) |
+| `npm run format` | Prettier |
+| `npm run db:generate` / `db:deploy` / `db:migrate` / `db:studio` | Prisma client / apply migrations / create a dev migration / browse data |
+
+## Testing
+
+```bash
+cd server && npm test
+```
+
+- **Unit tests** — the deterministic matching engine, provider adapter payload
+  mapping, and application status schemas.
+- **Integration tests** — the full auth flow (register, login, refresh
+  rotation, logout, cross-session revocation) against a real database using
+  Node's built-in fetch. Skipped automatically when `DATABASE_URL` is absent;
+  provisioned with a Postgres 16 service container in CI.
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` and
+on every pull request:
+
+| Job | Steps |
+| --- | --- |
+| server | `prisma migrate deploy` against a Postgres 16 service container, then typecheck, ESLint and the full Vitest suite |
+| client | typecheck, ESLint and a production Vite build |
+
+## Security
+
+- Secrets live only in gitignored `.env` files (committed `.env.example`
+  templates document every variable). API keys never reach the browser.
+- Environment variables are validated with Zod at boot — the API fails fast on
   invalid configuration.
-- Helmet, CORS allow-list, JSON body limits and a global rate limiter are
-  enabled from day one; all feature endpoints require a valid JWT (access
-  token in memory, rotating refresh token in an httpOnly cookie).
+- Helmet, a CORS allow-list, JSON body limits and layered rate limiters
+  (global plus tighter limits on credential endpoints) are enabled from day
+  one.
+- Access tokens live in memory only; refresh tokens are httpOnly cookies that
+  rotate on every use and are revoked via token versioning.
 - Every query is scoped by the authenticated `userId` from the token — never
-  from request input — so users cannot reach each other's CVs, jobs or matches.
-- Errors are logged server-side; clients only ever receive generic messages.
+  from request input — so users cannot reach each other's data.
+- Errors are logged server-side; clients receive generic messages only.
 
 ## Roadmap
 
-| Phase | Scope                                                                                                                                             | Status |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| 0     | Monorepo, API + client foundations, Prisma schema + initial migration                                                                             | ✅      |
-| 1     | Authentication (register/login/logout, JWT + refresh rotation, session revocation, protected routes)                                              | ✅      |
-| 2     | Profile + preferences (user profile editor, job-preference editor, transparent completion score)                                                  | ✅      |
-| 3     | CV upload + parsing (PDF/DOCX, magic-byte verified) + AI extraction → user skills & profile auto-fill                                             | ✅      |
-| 4     | Job source adapters (Remotive, Arbeitnow, RemoteOK, manual/LinkedIn-paste) + ingestion + deduplication + skill auto-extraction + 6-hour scheduler | ✅      |
-| 5     | Transparent weighted matching engine (7 documented factors) + AI explanations + unit tests                                                        | ✅      |
-| 6–7   | Jobs browsing (search/filters/pagination) + job detail pages + match breakdown ("Why you match") + dashboard                                      | ✅      |
-| 8     | Saved jobs + application tracking (Kanban, notes, interviews)                                                                                     | ✅      |
-| 9     | CV Optimizer + skills-gap + learning goals                                                                                                        | ✅      |
-| 10    | Notifications, final polish, documentation                                                                                                        | ✅      |
+All planned phases are complete:
+
+| Phase | Scope | Status |
+| --- | --- | --- |
+| 0 | Monorepo, API + client foundations, Prisma schema + migration | Done |
+| 1 | Authentication (JWT refresh rotation, revocation, protected routes) | Done |
+| 2 | Profile + preferences with completion score | Done |
+| 3 | CV upload + parsing + AI skill extraction | Done |
+| 4 | Job source adapters, ingestion, deduplication, scheduler | Done |
+| 5 | Transparent weighted matching engine + AI explanations | Done |
+| 6–7 | Jobs browsing, detail pages, match breakdown, dashboard | Done |
+| 8 | Saved jobs + application tracking (Kanban, notes, interviews) | Done |
+| 9 | CV optimizer + skills-gap + learning goals | Done |
+| 10 | Notifications + polish | Done |
+
+Possible next steps: full-text search (Postgres `tsvector`), client code
+splitting, cloud storage for CV uploads, email notifications.
+
