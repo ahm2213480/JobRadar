@@ -45,6 +45,12 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      # npm ci installs the @prisma/client package but NOT the generated
+      # client: in a monorepo its postinstall cannot find server/prisma/schema.
+      # `prisma migrate deploy` does not generate either — so generate
+      # explicitly BEFORE typecheck/tests touch the Prisma types.
+      - name: Generate Prisma client
+        run: npm run db:generate -w server
       - name: Apply Prisma migrations
         run: npm run db:deploy -w server
       - name: Typecheck
