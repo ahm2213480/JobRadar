@@ -1,0 +1,53 @@
+# Render Blueprint — one free web service that serves both the API and the
+# built SPA from client/dist, backed by a free Neon PostgreSQL database.
+#
+# Optional: you can create the service by hand in the dashboard and ignore this
+# file. If you use it, Render prompts for every `sync: false` value during the
+# first sync and never stores secrets in the repository.
+services:
+  - type: web
+    name: jobradar
+    runtime: node
+    plan: free
+    # Pick a region close to the Neon database region — every query is a
+    # round trip, and the free database is not in the same datacenter.
+    region: frankfurt
+    # The root directory MUST stay at the repository root: this is an npm
+    # workspaces monorepo, and Render does not expose files outside a service's
+    # root directory to its build.
+    #
+    # --include=dev is required because tsc and the Prisma CLI are
+    # devDependencies, and Render sets NODE_ENV=production at build time.
+    buildCommand: npm ci --include=dev && npm run db:generate -w server && npm run build
+    # Migrations run before the server starts so the schema is always current.
+    startCommand: npm run db:deploy -w server && npm run start -w server
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Neon POOLED connection string (host contains "-pooler").
+      - key: DATABASE_URL
+        sync: false
+      # Generate fresh secrets for production:
+      #   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      # The public URL of this service, e.g. https://jobradar.onrender.com
+      - key: CORS_ORIGIN
+        sync: false
+      # Optional — without a key the built-in heuristic CV extractor is used.
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_API_KEY
+        sync: false
+      # Optional job-discovery providers — any subset works.
+      - key: SERPER_API_KEY
+        sync: false
+      - key: JSEARCH_API_KEY
+        sync: false
+      - key: ADZUNA_APP_ID
+        sync: false
+      - key: ADZUNA_APP_KEY
+        sync: false

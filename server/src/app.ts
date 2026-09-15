@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import type { Express } from 'express';
@@ -14,6 +16,13 @@ export function createApp(): Express {
   const app = express();
 
   app.disable('x-powered-by');
+
+  // Behind a PaaS reverse proxy (Render, Fly, Railway, Heroku) Express must
+  // trust exactly that one hop. Without it req.ip is the proxy address, so
+  // every visitor shares a single rate-limit bucket and express-rate-limit
+  // rejects requests that carry X-Forwarded-For.
+  app.set('trust proxy', 1);
+
   app.use(helmet());
 
   app.use(
@@ -46,6 +55,25 @@ export function createApp(): Express {
   );
 
   app.use('/api', apiRouter);
+
+  // Single-service deploy: in production the API also serves the built SPA so
+  // the browser only ever talks to one origin. That keeps the httpOnly refresh
+  // cookie first-party (sameSite=strict) and removes CORS from the picture.
+  // In development the Vite dev server serves the UI instead.
+  const clientDist = path.resolve(__dirname, '../../client/dist');
+  if (env.NODE_ENV === 'production' && existsSync(clientDist)) {
+    app.use(express.static(clientDist));
+    // react-router routes (e.g. /jobs/some-id) don't exist as files: fall back
+    // to index.html. Registered as a path-less middleware because Express 5
+    // rejects a bare "*" route pattern.
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' || req.path.startsWith('/api')) {
+        next();
+        return;
+      }
+      res.sendFile(path.join(clientDist, 'index.html'));
+    });
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);

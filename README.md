@@ -197,6 +197,50 @@ All planned phases are complete:
 | 9 | CV optimizer + skills-gap + learning goals | Done |
 | 10 | Notifications + polish | Done |
 
+## Deployment (free tier)
+
+JobRadar deploys as **one free web service that serves both the API and the
+built SPA**. The browser therefore only ever talks to a single origin: no CORS
+setup, and the httpOnly refresh cookie stays first-party (`sameSite=strict`).
+
+| Piece | Service | Free allowance |
+| --- | --- | --- |
+| API + SPA | Render web service (Free plan) | Single instance that spins down when idle |
+| Database | Neon Free | 100 CU-hours/project · 0.5 GB storage · 5 GB transfer/month |
+
+**Do not** use Render's free PostgreSQL — free databases expire 30 days after
+creation and have no backups. Use Neon: it suspends compute after 5 minutes of
+inactivity, and `config/prisma.ts` already sets `connect_timeout` so a cold
+database fails fast instead of hanging the whole job sync.
+
+Build and start commands (Render dashboard, or the `render.yaml` blueprint at
+the repo root):
+
+```bash
+# Build — --include=dev is required: tsc and the Prisma CLI are devDependencies
+npm ci --include=dev && npm run db:generate -w server && npm run build
+
+# Start — migrations run before the server boots
+npm run db:deploy -w server && npm run start -w server
+```
+
+`healthCheckPath` is `/api/health`. Required environment variables:
+`NODE_ENV=production`, `DATABASE_URL` (the Neon **pooled** string), fresh
+`JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`, and `CORS_ORIGIN` set to the public
+URL. Leave the root directory at the repository root: Render does not expose
+files outside it, and this is an npm workspaces monorepo.
+
+Two free-tier behaviours to plan around:
+
+- **The scheduler stops when the instance sleeps.** `node-cron` runs inside the
+  API process, so an instance that spins down when idle misses its 6-hourly
+  ticks. Point a free pinger (cron-job.org, UptimeRobot) at `/api/health` every
+  10 minutes to keep it warm.
+- **Uploaded CV files live on the local disk and are lost on redeploy.** Only
+  the extracted `rawText` matters downstream — it is stored in PostgreSQL and
+  feeds the AI analysis, so the CV flow keeps working. Move to object storage
+  before exposing a CV download endpoint.
+
 Possible next steps: full-text search (Postgres `tsvector`), client code
 splitting, cloud storage for CV uploads, email notifications.
 
