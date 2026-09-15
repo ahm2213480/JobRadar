@@ -203,8 +203,22 @@ describe.skipIf(!RUNS_WITH_DB)('auth flow (integration)', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { accessToken: string };
     expect(typeof body.accessToken).toBe('string');
-    expect(body.accessToken).not.toBe(session.accessToken);
+
+    // Access tokens are stateless bearer tokens: their claims (sub, role, tv,
+    // iat, exp) have second granularity, so a token minted for the same user in
+    // the same second is byte-identical by design. Asserting string inequality
+    // was timing-dependent — it passed against a remote DB (hundreds of ms per
+    // request) but failed on a fast local Postgres where both requests land in
+    // the same second. Assert what actually matters instead: the refreshed
+    // token authenticates as the same user.
+    const me = await call('GET', '/auth/me', undefined, bearer(body.accessToken));
+    expect(me.status).toBe(200);
+    expect(((await me.json()) as { user: AuthSession['user'] }).user.id).toBe(session.user.id);
+
+    // The refresh token carries a random jti, so real rotation is guaranteed
+    // and can be asserted deterministically.
     const newCookie = cookiePair(rawRefreshCookie(res));
+    expect(newCookie).toBeTruthy();
     expect(newCookie).not.toBe(previousCookie);
     session = { ...session, accessToken: body.accessToken, refreshCookie: newCookie };
   });
